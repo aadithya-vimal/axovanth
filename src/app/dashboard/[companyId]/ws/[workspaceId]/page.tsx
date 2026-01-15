@@ -8,7 +8,7 @@ import {
   Ticket, Plus, Hash, UploadCloud, File as FileIcon, Download, 
   Loader2, ArrowRightLeft, X, Send, AlertCircle, ChevronRight, 
   User, RefreshCw, BarChart3, Check, Calendar, Flag, Clock, History, MessageSquare, AlertTriangle,
-  Layout, List, MessageCircle, Paperclip, Smile
+  Layout, List, MessageCircle, Paperclip, Smile, Info
 } from "lucide-react";
 import { useUser } from "@clerk/nextjs";
 
@@ -24,7 +24,7 @@ export default function WorkspacePage() {
   const workspaces = useQuery(api.workspaces.getByCompany, { companyId });
   const members = useQuery(api.workspaces.getMembers, { workspaceId });
   const myPermissions = useQuery(api.workspaces.getMyself, { workspaceId });
-  const chatMessages = useQuery(api.chat.getMessages, { companyId, workspaceId }); // Workspace Chat
+  const chatMessages = useQuery(api.chat.getMessages, { companyId, workspaceId });
   
   // Mutations
   const createTicket = useMutation(api.tickets.create);
@@ -37,16 +37,16 @@ export default function WorkspacePage() {
   const setDueDate = useMutation(api.tickets.setDueDate);
   const generateUploadUrl = useMutation(api.files.generateUploadUrl);
   const sendFile = useMutation(api.files.sendFile);
-  const sendChatMessage = useMutation(api.chat.send); // Chat Mutation
+  const sendChatMessage = useMutation(api.chat.send);
 
   // UI State
   const [activeTab, setActiveTab] = useState<'overview' | 'board' | 'chat' | 'assets'>('overview');
   const [selectedTicketId, setSelectedTicketId] = useState<string | null>(null);
-  const [drawerTab, setDrawerTab] = useState<'chat' | 'audit'>('chat');
   
-  // FIX: Added targetId as optional string to type definition
+  // Drawer Tab State (Modified for Mobile)
+  const [drawerTab, setDrawerTab] = useState<'chat' | 'audit' | 'details'>('chat'); 
+  
   const [confirmAction, setConfirmAction] = useState<{type: 'resolve' | 'reopen' | 'transfer', targetId?: string} | null>(null);
-  
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [isUploading, setIsUploading] = useState(false);
   const [commentText, setCommentText] = useState("");
@@ -131,7 +131,7 @@ export default function WorkspacePage() {
   const KanbanColumn = ({ status, label }: { status: string, label: string }) => {
     const columnTickets = tickets.filter(t => t.status === status);
     return (
-      <div className="flex-1 min-w-[300px] flex flex-col gap-4">
+      <div className="flex-1 min-w-[280px] md:min-w-[300px] flex flex-col gap-4">
         <div className="flex items-center justify-between px-2">
           <h3 className="text-xs font-bold uppercase tracking-wider text-muted flex items-center gap-2">
             <span className={`w-2 h-2 rounded-full ${status === 'open' ? 'bg-blue-500' : status === 'resolved' ? 'bg-green-500' : 'bg-orange-500'}`} />
@@ -180,7 +180,7 @@ export default function WorkspacePage() {
         </div>
         
         <div className="flex flex-col md:flex-row items-center gap-4 w-full md:w-auto">
-            <div className="flex bg-foreground/5 p-1 rounded-xl w-full md:w-auto overflow-x-auto">
+            <div className="flex bg-foreground/5 p-1 rounded-xl w-full md:w-auto overflow-x-auto custom-scrollbar">
                 <button onClick={() => setActiveTab('overview')} className={`px-4 py-2 rounded-lg text-xs font-bold uppercase tracking-wider transition-all whitespace-nowrap ${activeTab === 'overview' ? 'bg-background shadow-sm text-foreground' : 'text-muted hover:text-foreground'}`}>Overview</button>
                 <button onClick={() => setActiveTab('board')} className={`px-4 py-2 rounded-lg text-xs font-bold uppercase tracking-wider transition-all whitespace-nowrap ${activeTab === 'board' ? 'bg-background shadow-sm text-foreground' : 'text-muted hover:text-foreground'}`}>Board</button>
                 <button onClick={() => setActiveTab('chat')} className={`px-4 py-2 rounded-lg text-xs font-bold uppercase tracking-wider transition-all whitespace-nowrap ${activeTab === 'chat' ? 'bg-background shadow-sm text-foreground' : 'text-muted hover:text-foreground'}`}>Chat</button>
@@ -251,7 +251,7 @@ export default function WorkspacePage() {
 
       {/* BOARD TAB (Kanban) */}
       {activeTab === 'board' && (
-        <div className="flex gap-6 overflow-x-auto pb-6 animate-in fade-in">
+        <div className="flex gap-6 overflow-x-auto pb-6 animate-in fade-in custom-scrollbar">
             <KanbanColumn status="open" label="Backlog" />
             <KanbanColumn status="in_progress" label="In Progress" />
             <KanbanColumn status="resolved" label="Done" />
@@ -261,7 +261,7 @@ export default function WorkspacePage() {
       {/* CHAT TAB */}
       {activeTab === 'chat' && (
         <div className="h-[600px] flex flex-col glass-panel rounded-[32px] overflow-hidden border border-border animate-in fade-in">
-            <div className="flex-1 overflow-y-auto p-6 space-y-4 flex flex-col-reverse bg-background/50">
+            <div className="flex-1 overflow-y-auto p-6 space-y-4 flex flex-col-reverse bg-background/50 custom-scrollbar">
                 <div ref={chatScrollRef} />
                 {chatMessages?.map((msg, idx) => {
                     const isMe = msg.user?.clerkId === clerkUser?.id;
@@ -320,11 +320,12 @@ export default function WorkspacePage() {
         </div>
       )}
 
-      {/* TICKET DRAWER & CONFIRM MODALS (Reused from original) */}
+      {/* TICKET DRAWER & CONFIRM MODALS */}
       {selectedTicket && (
-        <div className="fixed inset-0 z-[150] flex items-center justify-end bg-black/40 backdrop-blur-md p-4 transition-all">
-          <div className="glass-panel w-full max-w-4xl h-full rounded-[32px] shadow-2xl animate-in slide-in-from-right duration-500 overflow-hidden flex flex-col border-border bg-background">
+        <div className="fixed inset-0 z-[150] flex items-center justify-end bg-black/40 backdrop-blur-md p-0 md:p-4 transition-all">
+          <div className="glass-panel w-full max-w-4xl h-full md:rounded-[32px] shadow-2xl animate-in slide-in-from-right duration-500 overflow-hidden flex flex-col border-border bg-background">
             
+            {/* Confirm Action Modal inside Drawer */}
             {confirmAction && (
               <div className="absolute inset-0 z-[200] bg-background/80 backdrop-blur-sm flex items-center justify-center p-4">
                 <div className="bg-background border border-border p-8 rounded-3xl shadow-2xl max-w-sm w-full animate-in zoom-in-95">
@@ -341,42 +342,44 @@ export default function WorkspacePage() {
               </div>
             )}
 
-            <header className="px-8 py-5 border-b border-border bg-background/50 backdrop-blur-xl flex items-center justify-between">
-              <div className="flex items-center gap-4">
-                <div className="w-10 h-10 bg-accent/10 rounded-xl flex items-center justify-center text-accent border border-accent/20">
+            <header className="px-6 py-5 border-b border-border bg-background/50 backdrop-blur-xl flex items-center justify-between shrink-0">
+              <div className="flex items-center gap-4 min-w-0">
+                <div className="w-10 h-10 bg-accent/10 rounded-xl flex items-center justify-center text-accent border border-accent/20 shrink-0">
                   <Hash className="w-5 h-5" />
                 </div>
-                <div>
+                <div className="min-w-0">
                   <div className="flex items-center gap-2 mb-1">
-                    <span className="text-[10px] font-bold uppercase tracking-wider text-muted">ID: {selectedTicket._id.substring(0,8)}</span>
+                    <span className="text-[10px] font-bold uppercase tracking-wider text-muted hidden md:inline">ID: {selectedTicket._id.substring(0,8)}</span>
                     <span className={`text-[10px] font-bold uppercase tracking-wider px-2 py-0.5 rounded-full ${selectedTicket.status === 'open' ? 'bg-accent/10 text-accent' : 'bg-green-500/10 text-green-600'}`}>{selectedTicket.status}</span>
                   </div>
-                  <h2 className="text-xl font-bold text-foreground truncate w-96 tracking-tight">{selectedTicket.title}</h2>
+                  <h2 className="text-lg md:text-xl font-bold text-foreground truncate w-full tracking-tight leading-tight">{selectedTicket.title}</h2>
                 </div>
               </div>
-              <button onClick={() => setSelectedTicketId(null)} className="p-2 hover:bg-foreground/5 rounded-full text-muted hover:text-foreground">
+              <button onClick={() => setSelectedTicketId(null)} className="p-2 hover:bg-foreground/5 rounded-full text-muted hover:text-foreground shrink-0">
                 <X className="w-6 h-6" />
               </button>
             </header>
 
-            <div className="flex-1 flex overflow-hidden">
-              <div className="flex-1 flex flex-col border-r border-border min-w-0">
-                <div className="flex items-center border-b border-border px-8">
-                  <button onClick={() => setDrawerTab('chat')} className={`py-4 text-xs font-bold uppercase tracking-wider border-b-2 px-4 transition-all ${drawerTab === 'chat' ? 'border-accent text-foreground' : 'border-transparent text-muted'}`}>Discussion</button>
-                  <button onClick={() => setDrawerTab('audit')} className={`py-4 text-xs font-bold uppercase tracking-wider border-b-2 px-4 transition-all ${drawerTab === 'audit' ? 'border-accent text-foreground' : 'border-transparent text-muted'}`}>Audit Log</button>
+            <div className="flex-1 flex flex-col lg:flex-row overflow-hidden relative">
+              <div className="flex-1 flex flex-col border-r border-border min-w-0 h-full overflow-hidden">
+                <div className="flex items-center border-b border-border px-4 md:px-8 shrink-0 overflow-x-auto">
+                  <button onClick={() => setDrawerTab('chat')} className={`py-4 text-xs font-bold uppercase tracking-wider border-b-2 px-4 transition-all whitespace-nowrap ${drawerTab === 'chat' ? 'border-accent text-foreground' : 'border-transparent text-muted'}`}>Discussion</button>
+                  <button onClick={() => setDrawerTab('audit')} className={`py-4 text-xs font-bold uppercase tracking-wider border-b-2 px-4 transition-all whitespace-nowrap ${drawerTab === 'audit' ? 'border-accent text-foreground' : 'border-transparent text-muted'}`}>Audit Log</button>
+                  {/* Mobile Only Tab for Details */}
+                  <button onClick={() => setDrawerTab('details')} className={`lg:hidden py-4 text-xs font-bold uppercase tracking-wider border-b-2 px-4 transition-all whitespace-nowrap ${drawerTab === 'details' ? 'border-accent text-foreground' : 'border-transparent text-muted'}`}>Details</button>
                 </div>
 
-                <div className="flex-1 overflow-y-auto p-8 custom-scrollbar">
-                  {drawerTab === 'chat' ? (
+                <div className="flex-1 overflow-y-auto p-4 md:p-8 custom-scrollbar relative">
+                  {drawerTab === 'chat' && (
                     <div className="space-y-6">
-                      <div className="p-6 bg-foreground/[0.02] rounded-2xl border border-border">
+                      <div className="p-4 md:p-6 bg-foreground/[0.02] rounded-2xl border border-border">
                         <p className="text-foreground text-sm leading-relaxed whitespace-pre-wrap">{selectedTicket.description}</p>
                       </div>
-                      <div className="space-y-2 flex flex-col">
+                      <div className="space-y-2 flex flex-col pb-4">
                         {comments?.map((c) => (
                           <div key={c._id} className={`flex gap-3 ${c.author?.clerkId === clerkUser?.id ? "flex-row-reverse" : "flex-row"}`}>
                             <div className="w-8 h-8 rounded-lg bg-foreground/5 flex items-center justify-center text-xs font-bold text-muted shrink-0">{c.author?.name?.[0]}</div>
-                            <div className={`max-w-[80%] ${c.author?.clerkId === clerkUser?.id ? "items-end" : "items-start"} flex flex-col`}>
+                            <div className={`max-w-[85%] ${c.author?.clerkId === clerkUser?.id ? "items-end" : "items-start"} flex flex-col`}>
                               <div className={`px-4 py-2.5 rounded-2xl text-sm font-medium leading-relaxed border ${c.author?.clerkId === clerkUser?.id ? "bg-accent text-white border-accent/50 rounded-tr-sm" : "bg-white dark:bg-white/5 text-foreground border-border rounded-tl-sm"}`}>{c.content}</div>
                             </div>
                           </div>
@@ -384,7 +387,9 @@ export default function WorkspacePage() {
                         <div ref={scrollRef} />
                       </div>
                     </div>
-                  ) : (
+                  )}
+                  
+                  {drawerTab === 'audit' && (
                     <div className="space-y-4">
                       {events?.map((e, idx) => (
                         <div key={idx} className="flex gap-4 p-4 rounded-xl bg-foreground/[0.02] border border-border">
@@ -400,10 +405,68 @@ export default function WorkspacePage() {
                       ))}
                     </div>
                   )}
+
+                  {/* Mobile Details View (Rendered inside main content area when tab is active) */}
+                  {drawerTab === 'details' && (
+                    <div className="lg:hidden space-y-6">
+                         <div className="space-y-4">
+                            <h3 className="text-xs font-bold text-muted uppercase tracking-wider flex items-center gap-2"><Flag className="w-3.5 h-3.5" /> Classification</h3>
+                            <div className="flex bg-foreground/5 p-1 rounded-xl">
+                                {['low', 'medium', 'high'].map((p) => (
+                                <button key={p} onClick={() => updatePriority({ ticketId: selectedTicket._id, priority: p as any })} className={`flex-1 py-2 rounded-lg text-[10px] font-bold uppercase tracking-wider transition-all ${selectedTicket.priority === p ? 'bg-white shadow-sm text-foreground' : 'text-muted'}`}>{p}</button>
+                                ))}
+                            </div>
+                        </div>
+
+                        <div className="space-y-4">
+                            <h3 className="text-xs font-bold text-muted uppercase tracking-wider flex items-center gap-2"><User className="w-3.5 h-3.5" /> Assignment</h3>
+                            <select className="w-full bg-background border border-border rounded-xl px-3 py-3 text-sm" value={selectedTicket.assigneeId || ""} onChange={(e) => assignTicket({ ticketId: selectedTicket._id, assigneeId: e.target.value === "" ? undefined : e.target.value as any })}>
+                                <option value="">Unassigned</option>
+                                {members?.map((m: any) => <option key={m.user._id} value={m.user._id}>{m.user.name}</option>)}
+                            </select>
+                        </div>
+
+                        <div className="space-y-4">
+                            <h3 className="text-xs font-bold text-muted uppercase tracking-wider flex items-center gap-2"><Clock className="w-3.5 h-3.5" /> Target Date</h3>
+                            <input type="date" className="w-full bg-background border border-border rounded-xl px-3 py-3 text-sm" value={selectedTicket.dueDate ? new Date(selectedTicket.dueDate).toISOString().split('T')[0] : ""} onChange={(e) => setDueDate({ ticketId: selectedTicket._id, dueDate: e.target.value ? new Date(e.target.value).getTime() : undefined })} />
+                        </div>
+
+                        <div className="pt-6 border-t border-border space-y-3">
+                            <h3 className="text-xs font-bold text-muted uppercase tracking-wider flex items-center gap-2"><AlertCircle className="w-3.5 h-3.5" /> Controls</h3>
+                            {hasAdminRights ? (
+                                <>
+                                {selectedTicket.status === 'open' ? (
+                                    <button onClick={() => setConfirmAction({type: 'resolve'})} className="w-full py-3 bg-green-500/10 text-green-600 border border-green-500/20 rounded-xl text-xs font-bold uppercase hover:bg-green-500 hover:text-white transition-all">Mark Resolved</button>
+                                ) : (
+                                    <button onClick={() => setConfirmAction({type: 'reopen'})} className="w-full py-3 bg-foreground/5 text-foreground border border-border rounded-xl text-xs font-bold uppercase hover:bg-foreground/10 transition-all flex items-center justify-center gap-2"><RefreshCw className="w-3 h-3" /> Reopen</button>
+                                )}
+                                {!isTransferring ? (
+                                    <button onClick={() => setIsTransferring(true)} className="w-full py-3 bg-background border border-border text-muted rounded-xl text-xs font-bold uppercase hover:border-accent hover:text-accent transition-all">Transfer Node</button>
+                                ) : (
+                                    <div className="space-y-2 animate-in fade-in">
+                                    <select className="w-full bg-background border border-border rounded-xl px-2 py-2 text-xs" onChange={(e) => setTargetWs(e.target.value)}>
+                                        <option value="">Select Department...</option>
+                                        {workspaces?.filter(ws => ws._id !== workspaceId).map(ws => (
+                                        <option key={ws._id} value={ws._id}>{ws.emoji} {ws.name}</option>
+                                        ))}
+                                    </select>
+                                    <div className="flex gap-2">
+                                        <button onClick={() => setIsTransferring(false)} className="flex-1 py-2 bg-foreground/5 rounded-lg text-[10px] font-bold uppercase">Cancel</button>
+                                        <button onClick={() => setConfirmAction({type: 'transfer', targetId: targetWs})} disabled={!targetWs} className="flex-1 py-2 bg-accent text-white rounded-lg text-[10px] font-bold uppercase">Confirm</button>
+                                    </div>
+                                    </div>
+                                )}
+                                </>
+                            ) : (
+                                <p className="text-xs text-center text-muted font-medium bg-foreground/5 p-2 rounded-lg">Admin access required for critical actions.</p>
+                            )}
+                        </div>
+                    </div>
+                  )}
                 </div>
 
                 {drawerTab === 'chat' && (
-                  <form onSubmit={handleComment} className="p-4 border-t border-border bg-background/50 backdrop-blur-md">
+                  <form onSubmit={handleComment} className="p-4 border-t border-border bg-background/50 backdrop-blur-md shrink-0">
                     <div className="flex gap-2">
                       <input placeholder="Transmit update..." className="input-field py-2.5 text-sm" value={commentText} onChange={(e) => setCommentText(e.target.value)} />
                       <button type="submit" className="p-3 bg-accent hover:bg-accent/90 text-white rounded-xl shadow-lg shadow-accent/20"><Send className="w-4 h-4" /></button>
@@ -412,8 +475,9 @@ export default function WorkspacePage() {
                 )}
               </div>
 
-              {/* SIDEBAR META */}
-              <div className={`w-80 bg-background/50 backdrop-blur-xl p-6 space-y-8 overflow-y-auto custom-scrollbar ${!hasAdminRights && "opacity-60 pointer-events-none grayscale"} hidden lg:block`}>
+              {/* SIDEBAR META (Desktop Only) */}
+              {/* This entire block is hidden on mobile via `hidden lg:block` */}
+              <div className={`w-80 bg-background/50 backdrop-blur-xl p-6 space-y-8 overflow-y-auto custom-scrollbar border-l border-border ${!hasAdminRights && "opacity-60 pointer-events-none grayscale"} hidden lg:block`}>
                 <div className="space-y-4">
                   <h3 className="text-xs font-bold text-muted uppercase tracking-wider flex items-center gap-2"><Flag className="w-3.5 h-3.5" /> Classification</h3>
                   <div className="flex bg-foreground/5 p-1 rounded-xl">

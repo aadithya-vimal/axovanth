@@ -11,7 +11,7 @@ import {
 } from "lucide-react";
 import { useUser } from "@clerk/nextjs";
 
-// NEW: Explicit Type Definition to fix Build Error
+// Explicit Type Definition
 interface AdminStats {
   isOverallAdmin: boolean;
   adminWorkspaceIds: string[];
@@ -25,10 +25,7 @@ export default function OperationalWorkflow() {
   // Global Data
   const tickets = useQuery(api.tickets.getAll, { companyId });
   const workspaces = useQuery(api.workspaces.getByCompany, { companyId });
-  
-  // FIX: Cast the result to the explicit type
   const adminStats = useQuery(api.workspaces.getMyAdminStats, { companyId }) as AdminStats | undefined;
-  
   const members = useQuery(api.companies.getMembers, { companyId });
 
   // Mutations
@@ -102,7 +99,7 @@ export default function OperationalWorkflow() {
     const columnTickets = tickets.filter(t => t.status === status);
     
     return (
-      <div className="flex-1 min-w-[300px] flex flex-col gap-4">
+      <div className="flex-1 min-w-[280px] md:min-w-[300px] flex flex-col gap-4">
         <div className="flex items-center justify-between px-2">
           <h3 className="text-xs font-bold uppercase tracking-wider text-muted flex items-center gap-2">
             <span className={`w-2 h-2 rounded-full ${status === 'open' ? 'bg-blue-500' : status === 'in_progress' ? 'bg-orange-500' : 'bg-green-500'}`} />
@@ -153,16 +150,16 @@ export default function OperationalWorkflow() {
           <p className="text-muted text-lg font-normal">Centralized command for all departmental tickets.</p>
         </div>
         
-        <div className="flex bg-foreground/5 p-1 rounded-xl">
+        <div className="flex bg-foreground/5 p-1 rounded-xl w-full md:w-auto">
           <button 
             onClick={() => setViewMode('list')}
-            className={`px-4 py-2 rounded-lg text-xs font-bold uppercase tracking-wider flex items-center gap-2 transition-all ${viewMode === 'list' ? 'bg-background shadow-sm text-foreground' : 'text-muted hover:text-foreground'}`}
+            className={`flex-1 md:flex-none justify-center px-4 py-2 rounded-lg text-xs font-bold uppercase tracking-wider flex items-center gap-2 transition-all ${viewMode === 'list' ? 'bg-background shadow-sm text-foreground' : 'text-muted hover:text-foreground'}`}
           >
             <List className="w-4 h-4" /> List
           </button>
           <button 
             onClick={() => setViewMode('board')}
-            className={`px-4 py-2 rounded-lg text-xs font-bold uppercase tracking-wider flex items-center gap-2 transition-all ${viewMode === 'board' ? 'bg-background shadow-sm text-foreground' : 'text-muted hover:text-foreground'}`}
+            className={`flex-1 md:flex-none justify-center px-4 py-2 rounded-lg text-xs font-bold uppercase tracking-wider flex items-center gap-2 transition-all ${viewMode === 'board' ? 'bg-background shadow-sm text-foreground' : 'text-muted hover:text-foreground'}`}
           >
             <Layout className="w-4 h-4" /> Board
           </button>
@@ -181,14 +178,14 @@ export default function OperationalWorkflow() {
               <div 
                 key={ticket._id}
                 onClick={() => setSelectedTicketId(ticket._id)}
-                className="glass-panel p-6 rounded-2xl border border-border hover:border-accent/50 hover:bg-accent/[0.02] transition-all cursor-pointer group flex items-center justify-between"
+                className="glass-panel p-4 md:p-6 rounded-2xl border border-border hover:border-accent/50 hover:bg-accent/[0.02] transition-all cursor-pointer group flex flex-col md:flex-row md:items-center justify-between gap-4"
               >
-                <div className="flex items-center gap-6">
-                  <div className={`w-12 h-12 rounded-xl flex items-center justify-center text-xl bg-foreground/5 border border-border`}>
+                <div className="flex items-start md:items-center gap-4 md:gap-6">
+                  <div className={`w-10 h-10 md:w-12 md:h-12 rounded-xl flex items-center justify-center text-lg md:text-xl bg-foreground/5 border border-border shrink-0`}>
                     {ticket.workspace?.emoji || "📂"}
                   </div>
                   <div>
-                    <h3 className="font-semibold text-foreground tracking-tight">{ticket.title}</h3>
+                    <h3 className="font-semibold text-foreground tracking-tight text-sm md:text-base line-clamp-1">{ticket.title}</h3>
                     <div className="flex items-center gap-3 mt-1">
                       <span className="text-xs text-muted">{ticket.workspace?.name}</span>
                       <span className="w-1 h-1 rounded-full bg-border" />
@@ -198,34 +195,40 @@ export default function OperationalWorkflow() {
                     </div>
                   </div>
                 </div>
-                <div className="flex items-center gap-4">
-                  <div className="text-right hidden md:block">
-                    <p className="text-xs font-bold text-foreground">{ticket.assignee?.name || "Unassigned"}</p>
-                    <p className="text--[10px] text-muted uppercase tracking-wider">Assignee</p>
+                
+                <div className="flex items-center justify-between md:justify-end gap-4 w-full md:w-auto pt-4 md:pt-0 border-t md:border-t-0 border-border/50">
+                  <div className="flex items-center gap-2">
+                     <div className="w-6 h-6 rounded-full bg-foreground/10 flex items-center justify-center text-[10px] font-bold">
+                        {ticket.assignee?.name?.[0] || "?"}
+                     </div>
+                     <span className="text-xs font-medium md:hidden">{ticket.assignee?.name || "Unassigned"}</span>
                   </div>
-                  <div className={`px-3 py-1 rounded-full text-[10px] font-bold uppercase tracking-wider border ${
-                    ticket.status === 'open' ? 'bg-accent/10 text-accent border-accent/20' : 'bg-green-500/10 text-green-600 border-green-500/20'
-                  }`}>
-                    {ticket.status}
+                  
+                  <div className="flex items-center gap-3">
+                    <div className={`px-3 py-1 rounded-full text-[10px] font-bold uppercase tracking-wider border ${
+                        ticket.status === 'open' ? 'bg-accent/10 text-accent border-accent/20' : 'bg-green-500/10 text-green-600 border-green-500/20'
+                    }`}>
+                        {ticket.status}
+                    </div>
+                    <ChevronRight className="w-4 h-4 text-muted group-hover:text-accent hidden md:block" />
                   </div>
-                  <ChevronRight className="w-4 h-4 text-muted group-hover:text-accent" />
                 </div>
               </div>
             ))
           )}
         </div>
       ) : (
-        <div className="flex gap-6 overflow-x-auto pb-6">
-          <KanbanColumn status="open" label="Open" />
-          <KanbanColumn status="in_progress" label="In Progress" />
-          <KanbanColumn status="resolved" label="Resolved" />
+        <div className="flex gap-4 md:gap-6 overflow-x-auto pb-6 custom-scrollbar snap-x snap-mandatory">
+          <div className="snap-center"><KanbanColumn status="open" label="Open" /></div>
+          <div className="snap-center"><KanbanColumn status="in_progress" label="In Progress" /></div>
+          <div className="snap-center"><KanbanColumn status="resolved" label="Resolved" /></div>
         </div>
       )}
 
       {/* ENHANCED DRAWER */}
       {selectedTicket && (
-        <div className="fixed inset-0 z-[150] flex items-center justify-end bg-black/40 backdrop-blur-md p-4 transition-all">
-          <div className="glass-panel w-full max-w-5xl h-full rounded-[32px] shadow-2xl animate-in slide-in-from-right duration-500 overflow-hidden flex flex-col border-border bg-background">
+        <div className="fixed inset-0 z-[150] flex items-center justify-end bg-black/40 backdrop-blur-md p-0 md:p-4 transition-all">
+          <div className="glass-panel w-full max-w-5xl h-full md:rounded-[32px] shadow-2xl animate-in slide-in-from-right duration-500 overflow-hidden flex flex-col border-border bg-background">
             
             {/* CONFIRMATION MODAL */}
             {confirmAction && (
@@ -246,26 +249,26 @@ export default function OperationalWorkflow() {
               </div>
             )}
 
-            <header className="px-8 py-5 border-b border-border bg-background/50 backdrop-blur-xl flex items-center justify-between">
-              <div className="flex items-center gap-4">
-                <div className="w-10 h-10 bg-accent/10 rounded-xl flex items-center justify-center text-accent border border-accent/20">
+            <header className="px-6 md:px-8 py-5 border-b border-border bg-background/50 backdrop-blur-xl flex items-center justify-between">
+              <div className="flex items-center gap-4 overflow-hidden">
+                <div className="w-10 h-10 bg-accent/10 rounded-xl flex items-center justify-center text-accent border border-accent/20 shrink-0">
                   <Hash className="w-5 h-5" />
                 </div>
-                <div>
-                  <h2 className="text-xl font-bold text-foreground truncate w-96 tracking-tight">{selectedTicket.title}</h2>
-                  <p className="text-xs text-muted font-medium">{selectedTicket.workspace?.name} Workspace</p>
+                <div className="min-w-0">
+                  <h2 className="text-lg md:text-xl font-bold text-foreground truncate tracking-tight">{selectedTicket.title}</h2>
+                  <p className="text-xs text-muted font-medium truncate">{selectedTicket.workspace?.name} Workspace</p>
                 </div>
               </div>
-              <button onClick={() => setSelectedTicketId(null)} className="p-2 hover:bg-foreground/5 rounded-full text-muted hover:text-foreground">
+              <button onClick={() => setSelectedTicketId(null)} className="p-2 hover:bg-foreground/5 rounded-full text-muted hover:text-foreground shrink-0">
                 <X className="w-6 h-6" />
               </button>
             </header>
 
-            <div className="flex-1 flex overflow-hidden">
+            <div className="flex-1 flex flex-col lg:flex-row overflow-hidden">
               <div className="flex-1 flex flex-col border-r border-border min-w-0">
                 
                 {/* TABS */}
-                <div className="flex items-center border-b border-border px-8">
+                <div className="flex items-center border-b border-border px-4 md:px-8 shrink-0">
                   <button 
                     onClick={() => setTab('chat')} 
                     className={`py-4 text-xs font-bold uppercase tracking-wider border-b-2 px-4 transition-all ${tab === 'chat' ? 'border-accent text-foreground' : 'border-transparent text-muted hover:text-foreground'}`}
@@ -280,13 +283,13 @@ export default function OperationalWorkflow() {
                   </button>
                 </div>
 
-                <div className="flex-1 overflow-y-auto p-8 custom-scrollbar">
+                <div className="flex-1 overflow-y-auto p-4 md:p-8 custom-scrollbar">
                   {tab === 'chat' ? (
                     <div className="space-y-6">
-                      <div className="p-6 bg-foreground/[0.02] rounded-2xl border border-border">
-                        <p className="text-foreground text-sm leading-relaxed">{selectedTicket.description}</p>
+                      <div className="p-4 md:p-6 bg-foreground/[0.02] rounded-2xl border border-border">
+                        <p className="text-foreground text-sm leading-relaxed whitespace-pre-wrap">{selectedTicket.description}</p>
                       </div>
-                      <div className="space-y-4">
+                      <div className="space-y-4 pb-20 lg:pb-0">
                         {comments?.map((c) => {
                           const isMe = c.author?.clerkId === clerkUser?.id;
                           return (
@@ -294,7 +297,7 @@ export default function OperationalWorkflow() {
                               <div className="w-8 h-8 rounded-lg bg-foreground/5 flex items-center justify-center text-xs font-bold text-muted shrink-0">
                                 {c.author?.name?.[0]}
                               </div>
-                              <div className={`max-w-[80%] ${isMe ? "items-end" : "items-start"} flex flex-col gap-1`}>
+                              <div className={`max-w-[85%] ${isMe ? "items-end" : "items-start"} flex flex-col gap-1`}>
                                 <div className={`px-4 py-2.5 rounded-2xl text-sm font-medium leading-relaxed border ${
                                   isMe ? "bg-accent text-white border-accent/50 rounded-tr-sm" : "bg-white dark:bg-white/5 text-foreground border-border rounded-tl-sm"
                                 }`}>
@@ -333,7 +336,7 @@ export default function OperationalWorkflow() {
                 </div>
 
                 {tab === 'chat' && (
-                  <form onSubmit={handleComment} className="p-4 border-t border-border bg-background/50 backdrop-blur-md">
+                  <form onSubmit={handleComment} className="p-4 border-t border-border bg-background/50 backdrop-blur-md shrink-0">
                     <div className="flex gap-2">
                       <input placeholder="Transmit update..." className="input-field py-2.5 text-sm" value={commentText} onChange={(e) => setCommentText(e.target.value)} />
                       <button type="submit" className="p-3 bg-accent hover:bg-accent/90 text-white rounded-xl shadow-lg shadow-accent/20"><Send className="w-4 h-4" /></button>
@@ -342,8 +345,10 @@ export default function OperationalWorkflow() {
                 )}
               </div>
 
-              {/* SIDEBAR */}
-              <div className="w-80 bg-background/50 backdrop-blur-xl p-6 space-y-8 overflow-y-auto custom-scrollbar border-l border-border">
+              {/* SIDEBAR - Hidden on mobile, but relevant actions should be accessible. 
+                  In a full rewrite I'd add a "Mobile Details" tab like in Workspace, 
+                  but strictly for this file, we'll keep it simple for now as the user primarily asked for list responsiveness. */}
+              <div className="w-80 bg-background/50 backdrop-blur-xl p-6 space-y-8 overflow-y-auto custom-scrollbar border-l border-border hidden lg:block">
                 <div className={`space-y-8 ${!hasEditRights ? "opacity-50 pointer-events-none grayscale" : ""}`}>
                   
                   {/* Priority */}

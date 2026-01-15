@@ -280,7 +280,7 @@ export default function AdminDashboard() {
   const selectedWorkspace = workspaces.find(w => w._id === selectedWorkspaceId);
 
   return (
-    <div className="max-w-7xl mx-auto space-y-12 pb-32 animate-in fade-in slide-in-from-bottom-4 duration-700 font-sans" onClick={() => { /* Close dropdowns if clicking background? Optional polish */ }}>
+    <div className="max-w-7xl mx-auto space-y-8 md:space-y-12 pb-40 animate-in fade-in slide-in-from-bottom-4 duration-700 font-sans" onClick={() => { /* Close dropdowns if clicking background? Optional polish */ }}>
       
       {/* ---------------------------------------------------------------------- */}
       {/* WORKSPACE DELETE MODAL */}
@@ -471,7 +471,7 @@ export default function AdminDashboard() {
         </div>
         
         {/* Tab Switcher - Responsive Scroll */}
-        <div className="w-full md:w-auto overflow-x-auto pb-2 md:pb-0">
+        <div className="w-full md:w-auto overflow-x-auto pb-2 md:pb-0 custom-scrollbar">
           <div className="flex items-center gap-1 bg-foreground/5 p-1.5 rounded-2xl min-w-max">
             <button 
               onClick={() => setActiveTab('hierarchy')}
@@ -515,8 +515,52 @@ export default function AdminDashboard() {
               </h2>
             </div>
             
-            <div className="glass-panel rounded-[32px] border-border shadow-sm bg-background overflow-x-auto">
-              <table className="w-full text-left border-collapse min-w-[600px]">
+            {/* MOBILE CARD VIEW */}
+            <div className="md:hidden space-y-4">
+              {activeMembers.map((m) => {
+                const isSelf = m.user?.clerkId === clerkUser?.id;
+                return (
+                  <div key={m._id} className="glass-panel p-5 rounded-2xl border-border bg-background">
+                    <div className="flex items-center gap-4 mb-4">
+                      <div className="w-10 h-10 bg-foreground/5 rounded-xl flex items-center justify-center font-bold text-sm border border-border text-muted">
+                        {m.user?.name.substring(0, 1)}
+                      </div>
+                      <div>
+                        <p className="font-bold text-sm text-foreground tracking-tight">{m.user?.name}</p>
+                        <p className="text-[10px] text-muted">{m.user?.email}</p>
+                      </div>
+                    </div>
+                    
+                    <div className="flex items-center justify-between border-t border-border pt-4">
+                      <div className="flex items-center gap-2">
+                         <span className={`px-2 py-0.5 rounded-md text-[10px] font-bold uppercase ${m.role === 'admin' ? 'bg-red-500/10 text-red-500' : 'bg-blue-500/10 text-blue-500'}`}>
+                            {m.role}
+                         </span>
+                         {m.roleName && (
+                            <span className="px-2 py-0.5 rounded-md bg-foreground/5 text-foreground text-[10px] font-bold uppercase">
+                              {m.roleName}
+                            </span>
+                         )}
+                      </div>
+                      <div className="flex gap-2">
+                         <button onClick={() => openEditModal(m)} className="p-2 bg-foreground/5 rounded-lg hover:bg-accent/10 hover:text-accent transition-all cursor-pointer">
+                            <Edit2 className="w-4 h-4" />
+                         </button>
+                         {!isSelf && (
+                            <button onClick={() => setMemberToRemove(m)} className="p-2 bg-red-500/5 text-red-500 rounded-lg hover:bg-red-500 hover:text-white transition-all shadow-sm active:scale-95 cursor-pointer">
+                              <UserMinus className="w-4 h-4" />
+                            </button>
+                         )}
+                      </div>
+                    </div>
+                  </div>
+                );
+              })}
+            </div>
+
+            {/* DESKTOP TABLE VIEW */}
+            <div className="hidden md:block glass-panel rounded-[32px] border-border shadow-sm bg-background overflow-hidden">
+              <table className="w-full text-left border-collapse">
                 <thead className="bg-foreground/[0.02] border-b border-border">
                   <tr>
                     <th className="px-8 py-5 text-[10px] font-bold text-muted uppercase tracking-wider">Identity</th>
@@ -595,7 +639,7 @@ export default function AdminDashboard() {
                    <span className="text-xs font-bold text-muted group-hover:text-accent uppercase tracking-wider">Provision Env</span>
                 </button>
                 
-                <div className="space-y-2 max-h-[400px] overflow-y-auto pr-2 custom-scrollbar">
+                <div className="space-y-2 max-h-[300px] lg:max-h-[400px] overflow-y-auto pr-2 custom-scrollbar">
                   {workspaces.map(ws => {
                     const WsIcon = WorkspaceIconMap[ws.emoji] || Layers; // Dynamic Icon Rendering
                     return (
@@ -630,7 +674,7 @@ export default function AdminDashboard() {
                 </div>
              </div>
 
-             <div className="lg:col-span-8 glass-panel rounded-[32px] p-8 border-border bg-background min-h-[400px]">
+             <div className="lg:col-span-8 glass-panel rounded-[32px] p-6 lg:p-8 border-border bg-background min-h-[400px]">
                 {!selectedWorkspaceId ? (
                   <div className="h-full flex flex-col items-center justify-center text-center opacity-40 gap-4">
                      <LayoutGrid className="w-12 h-12 text-muted" />
@@ -663,7 +707,7 @@ export default function AdminDashboard() {
                          <p className="text-center text-sm text-muted italic py-10">No members assigned to this node.</p>
                        ) : (
                          workspaceMembers.map((wm: any) => (
-                           <div key={wm._id} className="flex items-center justify-between p-4 bg-foreground/5 rounded-2xl border border-border">
+                           <div key={wm._id} className="flex flex-col md:flex-row md:items-center justify-between p-4 bg-foreground/5 rounded-2xl border border-border gap-4">
                               <div className="flex items-center gap-4">
                                 <div className="w-10 h-10 bg-background rounded-xl flex items-center justify-center font-bold text-xs border border-border">
                                   {wm.user?.name.substring(0, 1)}
@@ -676,7 +720,7 @@ export default function AdminDashboard() {
                                 </div>
                               </div>
                               
-                              <div className="flex items-center gap-2">
+                              <div className="flex items-center gap-2 justify-end">
                                  <button 
                                    onClick={() => updateWorkspaceRole({ memberId: wm._id, role: wm.role === 'admin' ? 'member' : 'admin' })}
                                    className={`px-3 py-1.5 rounded-lg text-xs font-bold uppercase transition-all cursor-pointer ${

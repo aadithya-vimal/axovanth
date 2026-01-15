@@ -84,8 +84,6 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
     </div>
   );
 
-  const defaultWsId = workspaces.find(w => w.isDefault)?._id || workspaces[0]?._id;
-
   // Helper function to resolve icon string to component
   const getWsIcon = (iconName: string) => {
     return WorkspaceIconMap[iconName] || Layers; // Fallback to Layers if not found
@@ -117,9 +115,9 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
     <div className="flex h-screen bg-background overflow-hidden font-sans">
       
       {/* ---------------------------------------------------------------------- */}
-      {/* MOBILE HEADER */}
+      {/* MOBILE HEADER - Fixed at top */}
       {/* ---------------------------------------------------------------------- */}
-      <div className="lg:hidden fixed top-0 left-0 right-0 z-50 bg-background/80 backdrop-blur-md border-b border-border h-16 flex items-center justify-between px-6">
+      <div className="lg:hidden fixed top-0 left-0 right-0 z-40 bg-background/80 backdrop-blur-md border-b border-border h-16 flex items-center justify-between px-6 transition-all">
         <div className="flex items-center gap-3">
           <button 
             onClick={() => setIsSidebarOpen(true)}
@@ -200,53 +198,64 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
       {isSidebarOpen && (
         <div 
           onClick={() => setIsSidebarOpen(false)}
-          className="fixed inset-0 z-30 bg-black/60 backdrop-blur-sm lg:hidden animate-in fade-in duration-300"
+          className="fixed inset-0 z-40 bg-black/60 backdrop-blur-sm lg:hidden animate-in fade-in duration-300"
         />
       )}
 
       {/* SIDEBAR */}
+      {/* Changes: Fixed height handling for mobile (dvh), removed margin on mobile, z-50 */}
       <aside className={`
-        fixed inset-y-0 left-0 z-40 w-72 m-4 lg:relative lg:flex lg:m-4 
-        glass-panel rounded-[32px] flex-col transition-all duration-500 border border-black/5 dark:border-white/10
-        ${isSidebarOpen ? "translate-x-0" : "-translate-x-[120%] lg:translate-x-0"}
+        fixed inset-y-0 left-0 z-50 w-72 lg:static lg:flex lg:flex-col lg:h-[calc(100vh-2rem)] lg:m-4
+        h-[100dvh] m-0 bg-background/95 lg:bg-background/50 backdrop-blur-xl lg:backdrop-filter-none
+        lg:glass-panel lg:rounded-[32px] border-r lg:border border-border
+        transition-transform duration-300 ease-in-out flex flex-col shadow-2xl lg:shadow-none
+        ${isSidebarOpen ? "translate-x-0" : "-translate-x-full lg:translate-x-0"}
       `}>
-        <div className="p-6 flex items-center justify-between border-b border-black/5 dark:border-white/5">
+        {/* Sidebar Header */}
+        <div className="p-6 flex items-center justify-between border-b border-border shrink-0">
           <div className="flex items-center gap-3">
              <div className="w-10 h-10 bg-accent rounded-2xl flex items-center justify-center overflow-hidden border border-accent/20 shadow-lg shadow-accent/20">
                {company.logoUrl ? <img src={company.logoUrl} className="w-full h-full object-cover" /> : <span className="text-white font-bold">{company.name.substring(0, 1).toUpperCase()}</span>}
              </div>
              <div className="min-w-0">
                <h2 className="font-bold text-foreground text-sm truncate leading-tight">{company.name}</h2>
-               {/* RENAMED: Premium OS -> Premium Platform */}
                <span className="text-[10px] text-accent font-bold uppercase tracking-widest">
                  Premium Platform
                </span>
              </div>
           </div>
-        </div>
-
-        <div className="p-3">
-          <button 
-            onClick={() => setIsSearchOpen(true)}
-            className="w-full flex items-center justify-between px-3 py-2 bg-gray-100/50 hover:bg-gray-100 dark:bg-white/5 dark:hover:bg-white/10 rounded-xl transition-all group cursor-pointer"
-          >
-            <div className="flex items-center gap-2 text-gray-400">
-              <Search className="w-3.5 h-3.5" />
-              <span className="text-xs font-medium">Command + K</span>
-            </div>
-            <Command className="w-3 h-3 text-gray-300" />
+          {/* Mobile Close Button */}
+          <button onClick={() => setIsSidebarOpen(false)} className="lg:hidden p-2 text-muted hover:text-foreground">
+            <X className="w-5 h-5" />
           </button>
         </div>
 
+        {/* Command Search Trigger */}
+        <div className="p-3 shrink-0">
+          <button 
+            onClick={() => setIsSearchOpen(true)}
+            className="w-full flex items-center justify-between px-3 py-2 bg-foreground/5 hover:bg-foreground/10 rounded-xl transition-all group cursor-pointer border border-transparent hover:border-border"
+          >
+            <div className="flex items-center gap-2 text-muted">
+              <Search className="w-3.5 h-3.5" />
+              <span className="text-xs font-medium">Search</span>
+            </div>
+            <div className="flex items-center gap-1">
+               <Command className="w-3 h-3 text-muted/50" />
+               <span className="text-[10px] text-muted/50 font-bold">K</span>
+            </div>
+          </button>
+        </div>
+
+        {/* Scrollable Navigation Area */}
         <nav className="flex-1 p-4 space-y-8 overflow-y-auto custom-scrollbar">
-          {/* DEPARTMENTS SECTION */}
+          
+          {/* DEPARTMENTS */}
           <div className="space-y-1">
             <span className="text-[10px] font-bold text-muted uppercase tracking-widest px-3 mb-2 block">Departments</span>
             {workspaces.map(ws => {
               const isLocked = !myWsIds.includes(ws._id);
-              // DYNAMIC ICON LOOKUP
               const WsIcon = getWsIcon(ws.emoji);
-
               return (
                 <NavItem 
                   key={ws._id} 
@@ -261,7 +270,7 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
             })}
           </div>
 
-          {/* SYSTEM HUB SECTION */}
+          {/* SYSTEM HUB */}
           <div className="space-y-1">
             <span className="text-[10px] font-bold text-muted uppercase tracking-widest px-3 mb-2 block">System Hub</span>
             <NavItem 
@@ -285,19 +294,15 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
             />
           </div>
 
-          {/* ADMINISTRATION SECTION */}
+          {/* GOVERNANCE */}
           <div className="space-y-1">
             <span className="text-[10px] font-bold text-muted uppercase tracking-widest px-3 mb-2 block">Governance</span>
-            
-            {/* AVAILABLE TO ALL */}
             <NavItem 
               icon={Settings} 
               label="Settings" 
               href={`/dashboard/${companyId}/settings`} 
               active={pathname.includes("/settings")}
             />
-
-            {/* ADMIN ONLY */}
             {userMember?.role === "admin" && (
               <NavItem 
                 icon={ShieldAlert} 
@@ -309,34 +314,36 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
           </div>
         </nav>
 
-        {/* BOTTOM SECTION WITH LOGOUT */}
-        <div className="p-4 bg-foreground/[0.02] border-t border-black/5 dark:border-white/5 flex flex-col gap-3 rounded-b-[32px]">
+        {/* BOTTOM SECTION - USER & LOGOUT */}
+        {/* Added shrink-0 to prevent squashing and pb-6 for mobile safe area */}
+        <div className="p-4 bg-foreground/[0.02] border-t border-border flex flex-col gap-3 rounded-b-none lg:rounded-b-[32px] shrink-0 pb-8 lg:pb-4">
           <div className="flex items-center justify-between">
              <div className="flex items-center gap-3">
               <UserButton appearance={{ elements: { avatarBox: "w-9 h-9 rounded-xl shadow-sm" } }} />
-              <div className="hidden lg:block">
+              <div className="block">
                 <p className="text-xs font-bold text-foreground truncate w-24">Active Session</p>
-                <p className="text-[9px] text-muted font-bold uppercase">v2.1.8-Premium</p>
+                <p className="text-[9px] text-muted font-bold uppercase">v2.4.0-Ent</p>
               </div>
             </div>
             <button 
               onClick={() => setTheme(theme === "dark" ? "light" : "dark")}
-              className="p-2.5 bg-background rounded-xl border border-black/5 dark:border-white/10 hover:scale-110 transition-transform active:scale-95 shadow-sm cursor-pointer"
+              className="p-2.5 bg-background rounded-xl border border-border hover:scale-110 transition-transform active:scale-95 shadow-sm cursor-pointer"
             >
               {theme === "dark" ? <Sun className="w-4 h-4 text-orange-400" /> : <Moon className="w-4 h-4 text-accent" />}
             </button>
           </div>
           
           <SignOutButton>
-             <button className="w-full flex items-center justify-center gap-2 p-3 rounded-xl bg-red-500/10 text-red-500 hover:bg-red-500 hover:text-white transition-all text-xs font-bold uppercase tracking-widest cursor-pointer">
+             <button className="w-full flex items-center justify-center gap-2 p-3 rounded-xl bg-red-500/10 text-red-500 hover:bg-red-500 hover:text-white transition-all text-xs font-bold uppercase tracking-widest cursor-pointer shadow-sm">
                <LogOut className="w-3.5 h-3.5" /> Terminate Session
              </button>
           </SignOutButton>
         </div>
       </aside>
 
-      <main className="flex-1 overflow-y-auto lg:p-12 p-6 pt-24 lg:pt-12 transition-all duration-500 relative z-0">
-        <div className="max-w-7xl mx-auto">
+      {/* MAIN CONTENT AREA */}
+      <main className="flex-1 overflow-y-auto lg:p-12 p-4 pt-20 lg:pt-12 transition-all duration-500 relative z-0">
+        <div className="max-w-7xl mx-auto pb-20 lg:pb-0">
           {children}
         </div>
       </main>

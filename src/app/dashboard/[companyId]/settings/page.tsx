@@ -19,7 +19,6 @@ export default function SystemConfig() {
   const currentUser = useQuery(api.users.currentUser);
   const members = useQuery(api.companies.getMembers, { companyId });
   const roles = useQuery(api.roles.getRoles, { companyId });
-  const myRequests = useQuery(api.roles.getRequests, { companyId }); // Fetch my requests to show status
   
   // Mutations
   const updateDetails = useMutation(api.companies.updateDetails);
@@ -84,19 +83,8 @@ export default function SystemConfig() {
   const myRecord = members?.find(m => m.user?.clerkId === clerkUser?.id);
   const isAdmin = myRecord?.role === 'admin';
 
-  // Helper to check if a request is pending for a specific role
-  const isRequestPending = (roleId: string) => {
-    // Assuming getRequests returns all requests, we filter for the current user in the UI or backend
-    // Since api.roles.getRequests returns ALL requests for the company, we need to filter by current user ID
-    // ideally the backend query should handle "myRequests", but we can filter client side if needed
-    // However, looking at previous code, api.roles.getRequests returns *all pending* requests for admin.
-    // For the user to see their own status, we might need a new query or check against the list if allowed.
-    // For now, let's keep it simple: if they click request, we try. 
-    return false; 
-  };
-
   return (
-    <div className="max-w-5xl space-y-12 pb-32 animate-in fade-in slide-in-from-bottom-6 duration-700 font-sans">
+    <div className="max-w-5xl space-y-12 pb-40 animate-in fade-in slide-in-from-bottom-6 duration-700 font-sans">
       
       {/* ---------------------------------------------------------------------- */}
       {/* ROLE REQUEST MODAL */}
@@ -150,7 +138,7 @@ export default function SystemConfig() {
         </div>
         
         {/* TAB SWITCHER */}
-        <div className="flex gap-2 bg-foreground/5 p-1 rounded-xl">
+        <div className="flex gap-2 bg-foreground/5 p-1 rounded-xl self-start md:self-auto">
           <button 
             onClick={() => setActiveTab('profile')} 
             className={`px-6 py-2 rounded-lg text-xs font-bold uppercase tracking-wider transition-all ${
@@ -210,14 +198,14 @@ export default function SystemConfig() {
       )}
 
       {activeTab === 'profile' && (
-        <section className="glass-panel p-8 rounded-[32px] border-border bg-background space-y-8 animate-in fade-in duration-500">
+        <section className="glass-panel p-6 lg:p-8 rounded-[32px] border-border bg-background space-y-8 animate-in fade-in duration-500">
           <div>
             <h2 className="text-lg font-bold text-foreground">My Access & Roles</h2>
             <p className="text-sm text-muted mt-1">View your current standing and request new privileges.</p>
           </div>
 
-          <div className="p-6 bg-foreground/5 rounded-2xl border border-border flex items-center gap-6 relative group">
-            <div className="w-16 h-16 rounded-full bg-background border border-border flex items-center justify-center text-2xl font-bold overflow-hidden">
+          <div className="p-6 bg-foreground/5 rounded-2xl border border-border flex flex-col sm:flex-row items-center sm:items-start gap-6 relative group text-center sm:text-left">
+            <div className="w-16 h-16 rounded-full bg-background border border-border flex items-center justify-center text-2xl font-bold overflow-hidden shrink-0">
               {currentUser?.image ? (
                 <img src={currentUser.image} alt="Profile" className="w-full h-full object-cover" />
               ) : (
@@ -225,7 +213,7 @@ export default function SystemConfig() {
               )}
             </div>
             <div>
-              <div className="flex items-center gap-3">
+              <div className="flex items-center justify-center sm:justify-start gap-3">
                 <h3 className="font-bold text-lg text-foreground">{currentUser?.name}</h3>
                 <button 
                   onClick={() => { setNewName(currentUser?.name || ""); setIsEditingProfile(true); }}
@@ -234,7 +222,7 @@ export default function SystemConfig() {
                   <Edit2 className="w-3.5 h-3.5" />
                 </button>
               </div>
-              <div className="flex gap-2 mt-2">
+              <div className="flex flex-wrap justify-center sm:justify-start gap-2 mt-2">
                 <span className="px-3 py-1 bg-accent/10 text-accent rounded-full text-xs font-bold uppercase">{myRecord?.role}</span>
                 {myRecord?.roleName && <span className="px-3 py-1 bg-foreground/10 text-foreground rounded-full text-xs font-bold uppercase">{myRecord.roleName}</span>}
               </div>
@@ -275,7 +263,7 @@ export default function SystemConfig() {
       {activeTab === 'system' && isAdmin && (
         <div className="animate-in fade-in duration-500 space-y-8">
           {/* BRANDING SECTION */}
-          <section className="glass-panel p-8 rounded-[32px] border-border bg-background space-y-6">
+          <section className="glass-panel p-6 lg:p-8 rounded-[32px] border-border bg-background space-y-6">
             <h2 className="text-lg font-bold text-foreground">Organization Identity</h2>
             <div className="grid md:grid-cols-2 gap-6">
               <div className="space-y-2">
@@ -299,7 +287,7 @@ export default function SystemConfig() {
           </section>
 
           {/* DANGER ZONE */}
-          <section className="glass-panel p-8 rounded-[32px] border-red-500/20 bg-red-500/[0.02] space-y-8">
+          <section className="glass-panel p-6 lg:p-8 rounded-[32px] border-red-500/20 bg-red-500/[0.02] space-y-8">
             <div className="flex items-center gap-4 text-red-500">
               <AlertTriangle className="w-6 h-6" />
               <h2 className="text-lg font-bold">Danger Zone</h2>
@@ -309,7 +297,7 @@ export default function SystemConfig() {
               <div className="space-y-4">
                 <h3 className="font-bold text-foreground text-sm">Transfer Ownership</h3>
                 <p className="text-xs text-muted">Transfer root admin privileges to another user. This action is irreversible.</p>
-                <div className="flex gap-2">
+                <div className="flex flex-col sm:flex-row gap-2">
                   <select className="input-field text-xs" value={transferId} onChange={(e) => setTransferId(e.target.value)}>
                     <option value="">Select New Owner...</option>
                     {members?.map(m => <option key={m.userId} value={m.userId}>{m.user?.name}</option>)}
