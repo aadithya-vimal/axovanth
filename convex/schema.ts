@@ -1,0 +1,111 @@
+import { defineSchema, defineTable } from "convex/server";
+import { v } from "convex/values";
+
+export default defineSchema({
+  users: defineTable({
+    name: v.string(),
+    email: v.string(),
+    image: v.optional(v.string()),
+    clerkId: v.string(),
+  }).index("by_clerkId", ["clerkId"]),
+
+  companies: defineTable({
+    name: v.string(),
+    description: v.optional(v.string()), // NEW
+    adminId: v.id("users"),
+    logoUrl: v.optional(v.string()),
+    domain: v.optional(v.string()),
+  }),
+
+  // Custom Roles defined by Admins
+  roles: defineTable({
+    companyId: v.id("companies"),
+    name: v.string(),
+    color: v.string(), // e.g., "blue", "red"
+    description: v.optional(v.string()),
+  }).index("by_company", ["companyId"]),
+
+  companyMembers: defineTable({
+    companyId: v.id("companies"),
+    userId: v.id("users"),
+    role: v.union(v.literal("admin"), v.literal("employee")), // System Role
+    roleId: v.optional(v.id("roles")), // NEW: Link to Custom Role
+    designation: v.optional(v.string()), // Legacy/Fallback
+    status: v.union(v.literal("active"), v.literal("pending")),
+  })
+  .index("by_company_and_user", ["companyId", "userId"])
+  .index("by_user", ["userId"]),
+
+  // Requests for Custom Roles
+  roleRequests: defineTable({
+    companyId: v.id("companies"),
+    userId: v.id("users"),
+    roleId: v.id("roles"),
+    status: v.union(v.literal("pending"), v.literal("approved"), v.literal("rejected")),
+  }).index("by_company", ["companyId"]),
+
+  workspaces: defineTable({
+    companyId: v.id("companies"),
+    name: v.string(),
+    emoji: v.string(),
+    workspaceHeadId: v.id("users"),
+    isDefault: v.boolean(),
+  }).index("by_company", ["companyId"]),
+
+  workspaceMembers: defineTable({
+    workspaceId: v.id("workspaces"),
+    userId: v.id("users"),
+    role: v.union(v.literal("admin"), v.literal("member")),
+    designation: v.optional(v.string()),
+  })
+  .index("by_workspace_and_user", ["workspaceId", "userId"])
+  .index("by_user", ["userId"]),
+
+  // Requests to join locked workspaces
+  workspaceRequests: defineTable({
+    workspaceId: v.id("workspaces"),
+    userId: v.id("users"),
+    status: v.union(v.literal("pending"), v.literal("approved"), v.literal("rejected")),
+  }).index("by_workspace", ["workspaceId"]),
+
+  tickets: defineTable({
+    companyId: v.id("companies"),
+    workspaceId: v.id("workspaces"),
+    creatorId: v.id("users"),
+    assigneeId: v.optional(v.id("users")),
+    title: v.string(),
+    description: v.string(),
+    status: v.union(v.literal("open"), v.literal("resolved"), v.literal("transferred")),
+    priority: v.union(v.literal("low"), v.literal("medium"), v.literal("high")),
+    type: v.optional(v.union(v.literal("bug"), v.literal("feature"), v.literal("task"))),
+    dueDate: v.optional(v.number()),
+  }).index("by_company", ["companyId"]).index("by_workspace", ["workspaceId"]),
+
+  ticketEvents: defineTable({
+    ticketId: v.id("tickets"),
+    actorId: v.id("users"),
+    type: v.string(),
+    metadata: v.optional(v.string()),
+  }).index("by_ticket", ["ticketId"]),
+
+  ticketComments: defineTable({
+    ticketId: v.id("tickets"),
+    authorId: v.id("users"),
+    content: v.string(),
+  }).index("by_ticket", ["ticketId"]),
+
+  assets: defineTable({
+    workspaceId: v.id("workspaces"),
+    storageId: v.string(),
+    fileName: v.string(),
+    fileType: v.string(),
+    uploaderId: v.id("users"),
+  }).index("by_workspace", ["workspaceId"]),
+
+  messages: defineTable({
+    companyId: v.id("companies"),
+    authorId: v.id("users"),
+    content: v.string(),
+    attachmentId: v.optional(v.id("_storage")),
+  }).index("by_company", ["companyId"]),
+});
