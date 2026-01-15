@@ -43,7 +43,10 @@ export default function WorkspacePage() {
   const [activeTab, setActiveTab] = useState<'overview' | 'board' | 'chat' | 'assets'>('overview');
   const [selectedTicketId, setSelectedTicketId] = useState<string | null>(null);
   const [drawerTab, setDrawerTab] = useState<'chat' | 'audit'>('chat');
-  const [confirmAction, setConfirmAction] = useState<{type: 'resolve' | 'reopen' | 'transfer'} | null>(null);
+  
+  // FIX: Added targetId as optional string to type definition
+  const [confirmAction, setConfirmAction] = useState<{type: 'resolve' | 'reopen' | 'transfer', targetId?: string} | null>(null);
+  
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [isUploading, setIsUploading] = useState(false);
   const [commentText, setCommentText] = useState("");
@@ -74,8 +77,8 @@ export default function WorkspacePage() {
     try {
       if (confirmAction.type === 'resolve') await resolveTicket({ ticketId: selectedTicket._id });
       if (confirmAction.type === 'reopen') await reopenTicket({ ticketId: selectedTicket._id });
-      if (confirmAction.type === 'transfer' && targetWs) {
-        await transferTicket({ ticketId: selectedTicket._id, targetWorkspaceId: targetWs as any });
+      if (confirmAction.type === 'transfer' && confirmAction.targetId) {
+        await transferTicket({ ticketId: selectedTicket._id, targetWorkspaceId: confirmAction.targetId as any });
         setIsTransferring(false);
         setTargetWs("");
       }
