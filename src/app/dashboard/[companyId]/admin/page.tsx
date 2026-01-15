@@ -844,13 +844,13 @@ export default function AdminDashboard() {
                   </div>
                   <div className="flex gap-2">
                     <button 
-                      onClick={() => initiateDecision('role', r._id, 'reject', r.user?.name, r.role?.name)} 
+                      onClick={() => initiateDecision('role', r._id, 'reject', r.user?.name || "Unknown User", r.role?.name || "Unknown Role")} 
                       className="px-4 py-2 bg-red-500/10 text-red-600 rounded-lg text-xs font-bold uppercase hover:bg-red-500 hover:text-white transition-all"
                     >
                       Reject
                     </button>
                     <button 
-                      onClick={() => initiateDecision('role', r._id, 'approve', r.user?.name, r.role?.name)} 
+                      onClick={() => initiateDecision('role', r._id, 'approve', r.user?.name || "Unknown User", r.role?.name || "Unknown Role")} 
                       className="px-4 py-2 bg-green-500/10 text-green-600 rounded-lg text-xs font-bold uppercase hover:bg-green-500 hover:text-white transition-all"
                     >
                       Approve
@@ -879,20 +879,20 @@ export default function AdminDashboard() {
                     </div>
                     <div>
                       <p className="text-sm font-bold text-foreground">
-                        {r.user?.name} <span className="font-normal text-muted">requests access to</span> <span className="text-accent">{r.workspaceName}</span>
+                        {r.user?.name} <span className="font-normal text-muted">requests access to</span> <span className="text-accent">{r.workspaceName || "Unknown Workspace"}</span>
                       </p>
                       <p className="text-[10px] text-muted uppercase tracking-wider mt-0.5">Submitted {new Date(r._creationTime).toLocaleDateString()}</p>
                     </div>
                   </div>
                   <div className="flex gap-2">
                     <button 
-                      onClick={() => initiateDecision('workspace', r._id, 'reject', r.user?.name, r.workspaceName)} 
+                      onClick={() => initiateDecision('workspace', r._id, 'reject', r.user?.name || "Unknown User", r.workspaceName || "Unknown Workspace")} 
                       className="px-4 py-2 bg-red-500/10 text-red-600 rounded-lg text-xs font-bold uppercase hover:bg-red-500 hover:text-white transition-all"
                     >
                       Reject
                     </button>
                     <button 
-                      onClick={() => initiateDecision('workspace', r._id, 'approve', r.user?.name, r.workspaceName)} 
+                      onClick={() => initiateDecision('workspace', r._id, 'approve', r.user?.name || "Unknown User", r.workspaceName || "Unknown Workspace")} 
                       className="px-4 py-2 bg-green-500/10 text-green-600 rounded-lg text-xs font-bold uppercase hover:bg-green-500 hover:text-white transition-all"
                     >
                       Approve
