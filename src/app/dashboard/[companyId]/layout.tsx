@@ -58,6 +58,11 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
     return () => document.removeEventListener("keydown", down);
   }, []);
 
+  // Close sidebar on navigation (mobile)
+  useEffect(() => {
+    setIsSidebarOpen(false);
+  }, [pathname]);
+
   const handleLockClick = (wsId: Id<"workspaces">, wsName: string) => {
     setAccessRequestModal({ isOpen: true, workspaceId: wsId, workspaceName: wsName });
   };
@@ -83,7 +88,7 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
 
   // Helper function to resolve icon string to component
   const getWsIcon = (iconName: string) => {
-    return WorkspaceIconMap[iconName] || Layers; // Fallback to Layers
+    return WorkspaceIconMap[iconName] || Layers; // Fallback to Layers if not found
   };
 
   const NavItem = ({ icon: Icon, label, href, active, badge, locked, onClick }: any) => (
@@ -93,7 +98,7 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
           onClick();
         } else {
           router.push(href);
-          setIsSidebarOpen(false);
+          setIsSidebarOpen(false); // Auto-close on click
         }
       }}
       className={`w-full flex items-center gap-3 px-3 py-2.5 rounded-xl text-sm font-medium transition-all duration-300 group cursor-pointer ${
@@ -111,6 +116,24 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
   return (
     <div className="flex h-screen bg-background overflow-hidden font-sans">
       
+      {/* ---------------------------------------------------------------------- */}
+      {/* MOBILE HEADER */}
+      {/* ---------------------------------------------------------------------- */}
+      <div className="lg:hidden fixed top-0 left-0 right-0 z-50 bg-background/80 backdrop-blur-md border-b border-border h-16 flex items-center justify-between px-6">
+        <div className="flex items-center gap-3">
+          <button 
+            onClick={() => setIsSidebarOpen(true)}
+            className="p-2 -ml-2 rounded-lg hover:bg-foreground/5 text-muted hover:text-foreground transition-colors"
+          >
+            <Menu className="w-6 h-6" />
+          </button>
+          <span className="font-bold text-lg text-foreground tracking-tight">{company.name}</span>
+        </div>
+        <div className="w-8 h-8 bg-accent rounded-xl flex items-center justify-center text-white font-bold text-xs">
+          {company.name.substring(0, 1).toUpperCase()}
+        </div>
+      </div>
+
       {/* ---------------------------------------------------------------------- */}
       {/* ACCESS REQUEST MODAL */}
       {/* ---------------------------------------------------------------------- */}
@@ -171,6 +194,14 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
             </div>
           </div>
         </div>
+      )}
+
+      {/* SIDEBAR OVERLAY (Mobile) */}
+      {isSidebarOpen && (
+        <div 
+          onClick={() => setIsSidebarOpen(false)}
+          className="fixed inset-0 z-30 bg-black/60 backdrop-blur-sm lg:hidden animate-in fade-in duration-300"
+        />
       )}
 
       {/* SIDEBAR */}

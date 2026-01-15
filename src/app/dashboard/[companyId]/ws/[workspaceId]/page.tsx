@@ -179,14 +179,14 @@ export default function WorkspacePage() {
           <p className="text-muted text-lg font-normal">Manage departmental flows and assets.</p>
         </div>
         
-        <div className="flex items-center gap-4">
-            <div className="flex bg-foreground/5 p-1 rounded-xl">
-                <button onClick={() => setActiveTab('overview')} className={`px-4 py-2 rounded-lg text-xs font-bold uppercase tracking-wider transition-all ${activeTab === 'overview' ? 'bg-background shadow-sm text-foreground' : 'text-muted hover:text-foreground'}`}>Overview</button>
-                <button onClick={() => setActiveTab('board')} className={`px-4 py-2 rounded-lg text-xs font-bold uppercase tracking-wider transition-all ${activeTab === 'board' ? 'bg-background shadow-sm text-foreground' : 'text-muted hover:text-foreground'}`}>Board</button>
-                <button onClick={() => setActiveTab('chat')} className={`px-4 py-2 rounded-lg text-xs font-bold uppercase tracking-wider transition-all ${activeTab === 'chat' ? 'bg-background shadow-sm text-foreground' : 'text-muted hover:text-foreground'}`}>Chat</button>
-                <button onClick={() => setActiveTab('assets')} className={`px-4 py-2 rounded-lg text-xs font-bold uppercase tracking-wider transition-all ${activeTab === 'assets' ? 'bg-background shadow-sm text-foreground' : 'text-muted hover:text-foreground'}`}>Assets</button>
+        <div className="flex flex-col md:flex-row items-center gap-4 w-full md:w-auto">
+            <div className="flex bg-foreground/5 p-1 rounded-xl w-full md:w-auto overflow-x-auto">
+                <button onClick={() => setActiveTab('overview')} className={`px-4 py-2 rounded-lg text-xs font-bold uppercase tracking-wider transition-all whitespace-nowrap ${activeTab === 'overview' ? 'bg-background shadow-sm text-foreground' : 'text-muted hover:text-foreground'}`}>Overview</button>
+                <button onClick={() => setActiveTab('board')} className={`px-4 py-2 rounded-lg text-xs font-bold uppercase tracking-wider transition-all whitespace-nowrap ${activeTab === 'board' ? 'bg-background shadow-sm text-foreground' : 'text-muted hover:text-foreground'}`}>Board</button>
+                <button onClick={() => setActiveTab('chat')} className={`px-4 py-2 rounded-lg text-xs font-bold uppercase tracking-wider transition-all whitespace-nowrap ${activeTab === 'chat' ? 'bg-background shadow-sm text-foreground' : 'text-muted hover:text-foreground'}`}>Chat</button>
+                <button onClick={() => setActiveTab('assets')} className={`px-4 py-2 rounded-lg text-xs font-bold uppercase tracking-wider transition-all whitespace-nowrap ${activeTab === 'assets' ? 'bg-background shadow-sm text-foreground' : 'text-muted hover:text-foreground'}`}>Assets</button>
             </div>
-            <button onClick={() => setIsModalOpen(true)} className="apple-button shadow-lg shadow-accent/20">
+            <button onClick={() => setIsModalOpen(true)} className="apple-button shadow-lg shadow-accent/20 w-full md:w-auto justify-center">
             <Plus className="w-5 h-5" /> New Ticket
             </button>
         </div>
@@ -196,7 +196,7 @@ export default function WorkspacePage() {
       {activeTab === 'overview' && (
         <div className="space-y-8 animate-in fade-in">
             {/* MATRIX */}
-            <section className="grid grid-cols-3 gap-4">
+            <section className="grid grid-cols-1 md:grid-cols-3 gap-4">
                 <div className="glass-panel p-6 rounded-3xl flex items-center gap-4 border-border">
                     <div className="w-12 h-12 bg-red-500/10 rounded-2xl flex items-center justify-center text-red-600"><AlertCircle className="w-6 h-6" /></div>
                     <div><p className="text-2xl font-bold text-foreground">{highPriority}</p><p className="text-xs font-bold text-muted uppercase tracking-wider">Critical Load</p></div>
@@ -413,7 +413,7 @@ export default function WorkspacePage() {
               </div>
 
               {/* SIDEBAR META */}
-              <div className={`w-80 bg-background/50 backdrop-blur-xl p-6 space-y-8 overflow-y-auto custom-scrollbar ${!hasAdminRights && "opacity-60 pointer-events-none grayscale"}`}>
+              <div className={`w-80 bg-background/50 backdrop-blur-xl p-6 space-y-8 overflow-y-auto custom-scrollbar ${!hasAdminRights && "opacity-60 pointer-events-none grayscale"} hidden lg:block`}>
                 <div className="space-y-4">
                   <h3 className="text-xs font-bold text-muted uppercase tracking-wider flex items-center gap-2"><Flag className="w-3.5 h-3.5" /> Classification</h3>
                   <div className="flex bg-foreground/5 p-1 rounded-xl">

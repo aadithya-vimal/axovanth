@@ -247,6 +247,49 @@ export const create = mutation({
   },
 });
 
+export const updateHead = mutation({
+  args: {
+    workspaceId: v.id("workspaces"),
+    userId: v.id("users"),
+  },
+  handler: async (ctx, args) => {
+    const identity = await ctx.auth.getUserIdentity();
+    if (!identity) throw new Error("Unauthorized");
+
+    const user = await ctx.db.query("users").withIndex("by_clerkId", (q) => q.eq("clerkId", identity.subject)).unique();
+    if (!user) throw new Error("User not found");
+
+    const workspace = await ctx.db.get(args.workspaceId);
+    if (!workspace) throw new Error("Workspace not found");
+
+    // Check if requester is company admin
+    const companyMember = await ctx.db.query("companyMembers")
+      .withIndex("by_company_and_user", q => q.eq("companyId", workspace.companyId).eq("userId", user._id))
+      .unique();
+
+    if (companyMember?.role !== "admin") throw new Error("Only Organization Admins can reassign Workspace Heads.");
+
+    // Ensure new head is a member of the workspace
+    const targetMember = await ctx.db.query("workspaceMembers")
+      .withIndex("by_workspace_and_user", q => q.eq("workspaceId", args.workspaceId).eq("userId", args.userId))
+      .unique();
+
+    if (!targetMember) {
+        // Auto-add as admin if not present
+        await ctx.db.insert("workspaceMembers", {
+            workspaceId: args.workspaceId,
+            userId: args.userId,
+            role: "admin"
+        });
+    } else if (targetMember.role !== "admin") {
+        // Upgrade to admin
+        await ctx.db.patch(targetMember._id, { role: "admin" });
+    }
+
+    await ctx.db.patch(args.workspaceId, { workspaceHeadId: args.userId });
+  },
+});
+
 export const addMember = mutation({
   args: {
     workspaceId: v.id("workspaces"),

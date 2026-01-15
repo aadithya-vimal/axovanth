@@ -94,6 +94,7 @@ export default function AdminDashboard() {
   const deleteWorkspace = useMutation(api.workspaces.deleteWorkspace);
   const addWorkspaceMember = useMutation(api.workspaces.addMember);
   const updateWorkspaceRole = useMutation(api.workspaces.updateRole);
+  const updateWorkspaceHead = useMutation(api.workspaces.updateHead);
   const removeWorkspaceMember = useMutation(api.workspaces.removeMember);
   const resolveWsRequest = useMutation(api.workspaces.resolveAccessRequest);
 
@@ -175,6 +176,16 @@ export default function AdminDashboard() {
     }
   };
 
+  const handleUpdateWsHead = async (userId: string) => {
+    if (!selectedWorkspaceId) return;
+    try {
+        await updateWorkspaceHead({ workspaceId: selectedWorkspaceId as any, userId: userId as any });
+        alert("Workspace Head updated successfully.");
+    } catch(e: any) {
+        alert(e.message);
+    }
+  }
+
   const handleCreateRole = async () => {
     if(!newRole.name) return;
     try {
@@ -239,8 +250,8 @@ export default function AdminDashboard() {
             isOpen ? 'border-accent ring-2 ring-accent/10' : 'border-border hover:border-accent/50'
           } ${disabled ? 'opacity-50 cursor-not-allowed' : 'cursor-pointer'}`}
         >
-          <span className="text-sm font-medium text-foreground">{selectedLabel}</span>
-          <ChevronDown className={`w-4 h-4 text-muted transition-transform ${isOpen ? 'rotate-180' : ''}`} />
+          <span className="text-sm font-medium text-foreground truncate">{selectedLabel}</span>
+          <ChevronDown className={`w-4 h-4 text-muted transition-transform flex-shrink-0 ${isOpen ? 'rotate-180' : ''}`} />
         </button>
         
         {isOpen && !disabled && (
@@ -265,6 +276,8 @@ export default function AdminDashboard() {
       </div>
     );
   };
+
+  const selectedWorkspace = workspaces.find(w => w._id === selectedWorkspaceId);
 
   return (
     <div className="max-w-7xl mx-auto space-y-12 pb-32 animate-in fade-in slide-in-from-bottom-4 duration-700 font-sans" onClick={() => { /* Close dropdowns if clicking background? Optional polish */ }}>
@@ -315,7 +328,7 @@ export default function AdminDashboard() {
             <div className="text-center mb-8">
               <h3 className="text-xl font-bold mb-2 text-foreground tracking-tight">Confirm Decision</h3>
               <p className="text-muted text-sm leading-relaxed px-2 font-normal">
-                Are you sure you want to <strong>{decisionModal.action.toUpperCase()}</strong> the request for <span className="font-bold text-foreground">{decisionModal.userName}</span> to access <span className="text-accent">{decisionModal.targetName}</span>?
+                Are you sure you want to <strong>{decisionModal.action.toUpperCase()}</strong> the request for <span className="font-bold text-foreground">{decisionModal.userName || "Unknown User"}</span> to access <span className="text-accent">{decisionModal.targetName || "Unknown Target"}</span>?
               </p>
             </div>
             
@@ -457,34 +470,36 @@ export default function AdminDashboard() {
           <p className="text-muted font-medium text-sm mt-2">Axovanth Organizational Integrity Protocols</p>
         </div>
         
-        {/* Tab Switcher */}
-        <div className="flex items-center gap-1 bg-foreground/5 p-1.5 rounded-2xl overflow-hidden">
-          <button 
-            onClick={() => setActiveTab('hierarchy')}
-            className={`px-5 py-2.5 rounded-xl text-xs font-bold uppercase tracking-wider transition-all duration-300 flex items-center gap-2 ${activeTab === 'hierarchy' ? 'bg-background shadow-md text-foreground' : 'text-muted hover:text-foreground hover:bg-foreground/5'}`}
-          >
-            <Users className="w-4 h-4" /> Hierarchy
-          </button>
-          <button 
-            onClick={() => setActiveTab('workspaces')}
-            className={`px-5 py-2.5 rounded-xl text-xs font-bold uppercase tracking-wider transition-all duration-300 flex items-center gap-2 ${activeTab === 'workspaces' ? 'bg-background shadow-md text-foreground' : 'text-muted hover:text-foreground hover:bg-foreground/5'}`}
-          >
-            <Building className="w-4 h-4" /> Workspaces
-          </button>
-          <button 
-            onClick={() => setActiveTab('roles')}
-            className={`px-5 py-2.5 rounded-xl text-xs font-bold uppercase tracking-wider transition-all duration-300 flex items-center gap-2 ${activeTab === 'roles' ? 'bg-background shadow-md text-foreground' : 'text-muted hover:text-foreground hover:bg-foreground/5'}`}
-          >
-            <UserCog className="w-4 h-4" /> Roles
-          </button>
-          <button 
-            onClick={() => setActiveTab('requests')}
-            className={`px-5 py-2.5 rounded-xl text-xs font-bold uppercase tracking-wider transition-all duration-300 flex items-center gap-2 ${activeTab === 'requests' ? 'bg-background shadow-md text-foreground' : 'text-muted hover:text-foreground hover:bg-foreground/5'}`}
-          >
-            <Inbox className="w-4 h-4" /> 
-            Inbox
-            {pendingRequestCount > 0 && <span className="ml-1 px-1.5 py-0.5 rounded-full bg-red-500 text-white text-[9px]">{pendingRequestCount}</span>}
-          </button>
+        {/* Tab Switcher - Responsive Scroll */}
+        <div className="w-full md:w-auto overflow-x-auto pb-2 md:pb-0">
+          <div className="flex items-center gap-1 bg-foreground/5 p-1.5 rounded-2xl min-w-max">
+            <button 
+              onClick={() => setActiveTab('hierarchy')}
+              className={`px-5 py-2.5 rounded-xl text-xs font-bold uppercase tracking-wider transition-all duration-300 flex items-center gap-2 ${activeTab === 'hierarchy' ? 'bg-background shadow-md text-foreground' : 'text-muted hover:text-foreground hover:bg-foreground/5'}`}
+            >
+              <Users className="w-4 h-4" /> Hierarchy
+            </button>
+            <button 
+              onClick={() => setActiveTab('workspaces')}
+              className={`px-5 py-2.5 rounded-xl text-xs font-bold uppercase tracking-wider transition-all duration-300 flex items-center gap-2 ${activeTab === 'workspaces' ? 'bg-background shadow-md text-foreground' : 'text-muted hover:text-foreground hover:bg-foreground/5'}`}
+            >
+              <Building className="w-4 h-4" /> Workspaces
+            </button>
+            <button 
+              onClick={() => setActiveTab('roles')}
+              className={`px-5 py-2.5 rounded-xl text-xs font-bold uppercase tracking-wider transition-all duration-300 flex items-center gap-2 ${activeTab === 'roles' ? 'bg-background shadow-md text-foreground' : 'text-muted hover:text-foreground hover:bg-foreground/5'}`}
+            >
+              <UserCog className="w-4 h-4" /> Roles
+            </button>
+            <button 
+              onClick={() => setActiveTab('requests')}
+              className={`px-5 py-2.5 rounded-xl text-xs font-bold uppercase tracking-wider transition-all duration-300 flex items-center gap-2 ${activeTab === 'requests' ? 'bg-background shadow-md text-foreground' : 'text-muted hover:text-foreground hover:bg-foreground/5'}`}
+            >
+              <Inbox className="w-4 h-4" /> 
+              Inbox
+              {pendingRequestCount > 0 && <span className="ml-1 px-1.5 py-0.5 rounded-full bg-red-500 text-white text-[9px]">{pendingRequestCount}</span>}
+            </button>
+          </div>
         </div>
       </header>
 
@@ -500,8 +515,8 @@ export default function AdminDashboard() {
               </h2>
             </div>
             
-            <div className="glass-panel rounded-[32px] border-border shadow-sm bg-background overflow-visible">
-              <table className="w-full text-left border-collapse">
+            <div className="glass-panel rounded-[32px] border-border shadow-sm bg-background overflow-x-auto">
+              <table className="w-full text-left border-collapse min-w-[600px]">
                 <thead className="bg-foreground/[0.02] border-b border-border">
                   <tr>
                     <th className="px-8 py-5 text-[10px] font-bold text-muted uppercase tracking-wider">Identity</th>
@@ -623,10 +638,21 @@ export default function AdminDashboard() {
                   </div>
                 ) : (
                   <div className="space-y-6 animate-in fade-in duration-300">
-                     <div className="flex items-center justify-between border-b border-border pb-6">
+                     <div className="flex flex-col md:flex-row md:items-center justify-between border-b border-border pb-6 gap-4">
                         <div>
                           <h3 className="text-xl font-bold text-foreground">Member Roster</h3>
                           <p className="text-xs text-muted font-medium mt-1">Configure access levels for this environment.</p>
+                        </div>
+                        
+                        {/* WORKSPACE HEAD ASSIGNMENT */}
+                        <div className="w-full md:w-64">
+                            <CustomDropdown 
+                                id="head-assignment"
+                                label="Workspace Head"
+                                value={selectedWorkspace?.workspaceHeadId}
+                                onChange={(val: string) => handleUpdateWsHead(val)}
+                                options={workspaceMembers?.map((m: any) => ({ value: m.userId, label: m.user?.name })) || []}
+                            />
                         </div>
                      </div>
 
@@ -642,7 +668,12 @@ export default function AdminDashboard() {
                                 <div className="w-10 h-10 bg-background rounded-xl flex items-center justify-center font-bold text-xs border border-border">
                                   {wm.user?.name.substring(0, 1)}
                                 </div>
-                                <p className="font-bold text-sm text-foreground">{wm.user?.name}</p>
+                                <div>
+                                    <p className="font-bold text-sm text-foreground">{wm.user?.name}</p>
+                                    {selectedWorkspace?.workspaceHeadId === wm.userId && (
+                                        <span className="text-[9px] bg-accent/10 text-accent px-1.5 py-0.5 rounded font-bold uppercase tracking-wider">Head</span>
+                                    )}
+                                </div>
                               </div>
                               
                               <div className="flex items-center gap-2">
