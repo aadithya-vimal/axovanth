@@ -6,9 +6,15 @@ import { api } from "../../../../../convex/_generated/api";
 import { useParams } from "next/navigation";
 import { 
   Ticket, Hash, Loader2, ArrowRightLeft, X, Send, AlertCircle, ChevronRight, 
-  User, RefreshCw, Check, Calendar, Flag, Clock, History, MessageSquare, AlertTriangle
+  User, RefreshCw, Check, Calendar, Flag, Clock, History, MessageSquare, AlertTriangle, Plus
 } from "lucide-react";
 import { useUser } from "@clerk/nextjs";
+
+// NEW: Explicit Type Definition to fix Build Error
+interface AdminStats {
+  isOverallAdmin: boolean;
+  adminWorkspaceIds: string[];
+}
 
 export default function OperationalWorkflow() {
   const params = useParams();
@@ -18,7 +24,10 @@ export default function OperationalWorkflow() {
   // Global Data
   const tickets = useQuery(api.tickets.getAll, { companyId });
   const workspaces = useQuery(api.workspaces.getByCompany, { companyId });
-  const adminStats = useQuery(api.workspaces.getMyAdminStats, { companyId });
+  
+  // FIX: Cast the result to the explicit type
+  const adminStats = useQuery(api.workspaces.getMyAdminStats, { companyId }) as AdminStats | undefined;
+  
   const members = useQuery(api.companies.getMembers, { companyId });
 
   // Mutations
@@ -132,7 +141,7 @@ export default function OperationalWorkflow() {
               <div className="flex items-center gap-4">
                 <div className="text-right hidden md:block">
                   <p className="text-xs font-bold text-foreground">{ticket.assignee?.name || "Unassigned"}</p>
-                  <p className="text-[10px] text-muted uppercase tracking-wider">Assignee</p>
+                  <p className="text--[10px] text-muted uppercase tracking-wider">Assignee</p>
                 </div>
                 <div className={`px-3 py-1 rounded-full text-[10px] font-bold uppercase tracking-wider border ${
                   ticket.status === 'open' ? 'bg-accent/10 text-accent border-accent/20' : 'bg-green-500/10 text-green-600 border-green-500/20'
