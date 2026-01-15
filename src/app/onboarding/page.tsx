@@ -16,7 +16,7 @@ export default function OnboardingPage() {
   const createCompany = useMutation(api.companies.create);
   const requestAccess = useMutation(api.companies.requestAccess);
   const companies = useQuery(api.companies.getAll);
-  const myMemberships = useQuery(api.companies.getMyMemberships); // Fetch user's existing roles
+  const myMemberships = useQuery(api.companies.getMyMemberships);
   
   const router = useRouter();
   const { user } = useUser();
@@ -48,7 +48,6 @@ export default function OnboardingPage() {
       setRequestStatus(prev => ({ ...prev, [companyId]: 'success' }));
     } catch (error: any) {
       if (error.message.includes("Membership already exists")) {
-        // Just in case UI desyncs, treat as joined
         setRequestStatus(prev => ({ ...prev, [companyId]: 'joined' }));
       } else {
         setRequestStatus(prev => ({ ...prev, [companyId]: 'error' }));
@@ -86,7 +85,8 @@ export default function OnboardingPage() {
       <div className="max-w-4xl w-full mt-10">
         <header className="mb-12 text-center">
           <h1 className="text-3xl font-bold tracking-tight text-foreground">Setup your workspace</h1>
-          <p className="text-muted mt-2 italic font-medium">Axovanth Enterprise OS Initialization</p>
+          {/* RENAMED from Enterprise OS Initialization */}
+          <p className="text-muted mt-2 italic font-medium">Axovanth Enterprise Initialization</p>
           <div className="mt-4 inline-block px-4 py-1 bg-accent/10 text-accent rounded-full text-xs font-bold uppercase tracking-widest border border-accent/20">
             Identity: {user?.fullName || "Verified User"}
           </div>
@@ -142,7 +142,6 @@ export default function OnboardingPage() {
                    const status = requestStatus[company._id] || 'idle';
                    const isJoined = status === 'joined' || status === 'success';
                    
-                   // Determine UI State
                    const isMember = membership?.status === "active";
                    const isPending = membership?.status === "pending" || isJoined;
 

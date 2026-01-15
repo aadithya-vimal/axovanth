@@ -5,11 +5,11 @@ import { ConvexClientProvider } from "@/components/providers/convex-provider";
 
 const inter = Inter({ 
   subsets: ["latin"],
-  variable: "--font-inter",  // CRITICAL: Defines the CSS variable for Tailwind
+  variable: "--font-inter", 
 });
 
 export const metadata: Metadata = {
-  title: "Axovanth | Enterprise Workspace OS",
+  title: "Axovanth | Enterprise Workspace Platform",
   description: "Centralized company operations and role-based access control.",
 };
 

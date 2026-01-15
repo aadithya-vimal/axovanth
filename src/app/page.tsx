@@ -32,16 +32,15 @@ export default function LandingPage() {
   return (
     <main className="min-h-screen bg-background text-foreground overflow-x-hidden font-sans selection:bg-blue-500/30">
       
-      {/* ---------------------------------------------------------------------------------- */}
-      {/* NAVIGATION BAR */}
-      {/* ---------------------------------------------------------------------------------- */}
+      {/* NAVIGATION */}
       <nav className="fixed top-0 left-0 right-0 z-50 bg-background/80 backdrop-blur-xl transition-all border-b border-border/40 supports-[backdrop-filter]:bg-background/60">
         <div className="max-w-7xl mx-auto px-6 h-16 flex items-center justify-between">
           <div className="flex items-center gap-3 cursor-pointer group" onClick={() => router.push("/")}>
             <div className="w-9 h-9 rounded-xl flex items-center justify-center transition-transform group-hover:scale-105 shadow-sm bg-zinc-900 dark:bg-white text-white dark:text-black border border-black/5 dark:border-white/10 overflow-hidden">
               <img src="/logo.png" alt="Axovanth Logo" className="w-full h-full object-cover" />
             </div>
-            <span className="font-bold text-lg tracking-tight">Axovanth<span className="text-blue-600">.OS</span></span>
+            {/* RENAMED: Axovanth.OS -> Axovanth */}
+            <span className="font-bold text-lg tracking-tight">Axovanth</span>
           </div>
           
           <div className="hidden md:flex items-center gap-8 text-sm font-medium text-muted-foreground">
@@ -83,11 +82,8 @@ export default function LandingPage() {
         </div>
       </nav>
 
-      {/* ---------------------------------------------------------------------------------- */}
       {/* HERO SECTION */}
-      {/* ---------------------------------------------------------------------------------- */}
       <section className="relative pt-24 pb-20 lg:pt-36 lg:pb-32 overflow-hidden">
-        {/* Gradients */}
         <div className="absolute top-0 left-1/2 -translate-x-1/2 w-[1000px] h-[600px] bg-blue-500/10 rounded-[100%] blur-[120px] -z-10 animate-pulse duration-[5000ms]" />
         
         <div className="max-w-5xl mx-auto px-6 text-center relative z-10">
@@ -96,7 +92,7 @@ export default function LandingPage() {
               <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-blue-400 opacity-75"></span>
               <span className="relative inline-flex rounded-full h-2 w-2 bg-blue-500"></span>
             </span>
-            Axovanth 2.4 Now Available
+            Axovanth 2.4 Enterprise
           </div>
           
           <h1 className="text-5xl md:text-7xl font-bold tracking-tight leading-[1.1] mb-8 animate-in fade-in slide-in-from-bottom-6 duration-1000 text-foreground">
@@ -141,9 +137,7 @@ export default function LandingPage() {
         </div>
       </section>
 
-      {/* ---------------------------------------------------------------------------------- */}
       {/* 3D INTERFACE PREVIEW */}
-      {/* ---------------------------------------------------------------------------------- */}
       <section className="px-6 pb-24 overflow-hidden">
         <div className="max-w-6xl mx-auto">
           <div className="relative group perspective-1000 animate-in fade-in zoom-in-95 duration-1000 delay-300">
@@ -158,7 +152,7 @@ export default function LandingPage() {
                 </div>
                 <div className="mx-auto h-6 w-64 bg-black/5 dark:bg-white/5 rounded-md flex items-center justify-center border border-black/5 dark:border-white/5 shadow-sm">
                   <span className="text-[10px] text-muted-foreground font-medium flex items-center gap-1">
-                    <Lock className="w-2.5 h-2.5" /> app.axovanth.os
+                    <Lock className="w-2.5 h-2.5" /> app.axovanth.com
                   </span>
                 </div>
               </div>
@@ -225,9 +219,7 @@ export default function LandingPage() {
         </div>
       </section>
 
-      {/* ---------------------------------------------------------------------------------- */}
-      {/* SECTION: INTEGRATIONS TICKER */}
-      {/* ---------------------------------------------------------------------------------- */}
+      {/* INTEGRATIONS TICKER */}
       <section className="py-12 border-y border-border bg-background/50">
         <div className="max-w-7xl mx-auto px-6">
           <p className="text-center text-xs font-bold text-muted-foreground uppercase tracking-widest mb-8">Seamlessly Integrates With Your Stack</p>
@@ -249,9 +241,7 @@ export default function LandingPage() {
         </div>
       </section>
 
-      {/* ---------------------------------------------------------------------------------- */}
-      {/* SECTION: ARCHITECTURE BENTO */}
-      {/* ---------------------------------------------------------------------------------- */}
+      {/* ARCHITECTURE BENTO */}
       <section className="py-32" id="security">
         <div className="max-w-6xl mx-auto px-6">
           <div className="mb-20 text-center max-w-2xl mx-auto">
@@ -261,7 +251,7 @@ export default function LandingPage() {
 
           <div className="grid grid-cols-1 md:grid-cols-3 gap-6 auto-rows-[300px]">
              
-             {/* Large Left Card - FORCED DARK THEME */}
+             {/* Large Left Card - DARK MODE FORCED */}
              <div className="md:col-span-2 rounded-[32px] bg-zinc-900 border border-zinc-800 p-8 relative overflow-hidden group hover:border-blue-500/20 transition-all shadow-sm">
                 <div className="absolute top-0 right-0 p-8 opacity-20 group-hover:opacity-40 transition-opacity">
                    <Activity className="w-48 h-48 text-blue-500" />
@@ -277,7 +267,7 @@ export default function LandingPage() {
                 </div>
              </div>
 
-             {/* Small Right Card - Security First - FORCED DARK THEME */}
+             {/* Small Right Card - Security First - DARK MODE FORCED */}
              <div className="md:col-span-1 rounded-[32px] bg-zinc-900 border border-zinc-800 p-8 flex flex-col justify-between relative overflow-hidden group shadow-sm hover:border-blue-500/30 transition-all">
                 <div className="absolute -bottom-4 -right-4 w-24 h-24 bg-gradient-to-br from-blue-500 to-purple-500 rounded-full blur-2xl opacity-10 group-hover:scale-150 transition-transform duration-700" />
                 <Lock className="w-10 h-10 text-blue-400 opacity-80" />
@@ -287,7 +277,7 @@ export default function LandingPage() {
                 </div>
              </div>
 
-             {/* Small Left Card - FORCED DARK THEME */}
+             {/* Small Left Card - DARK MODE FORCED */}
              <div className="md:col-span-1 rounded-[32px] bg-zinc-900 border border-zinc-800 p-8 flex flex-col justify-between group hover:border-purple-500/20 transition-all shadow-sm">
                 <div className="flex gap-2">
                    <div className="w-3 h-3 rounded-full bg-red-500" />
@@ -300,7 +290,7 @@ export default function LandingPage() {
                 </div>
              </div>
 
-             {/* Large Right Card - FORCED DARK THEME */}
+             {/* Large Right Card - DARK MODE FORCED */}
              <div className="md:col-span-2 rounded-[32px] bg-zinc-900 border border-zinc-800 p-8 relative overflow-hidden group hover:border-green-500/20 transition-all shadow-sm">
                 <div className="absolute -right-10 top-10 opacity-10 group-hover:opacity-20 transition-opacity">
                    <Workflow className="w-64 h-64 text-green-500" />
@@ -319,9 +309,7 @@ export default function LandingPage() {
         </div>
       </section>
 
-      {/* ---------------------------------------------------------------------------------- */}
       {/* FEATURES LIST */}
-      {/* ---------------------------------------------------------------------------------- */}
       <section className="py-24 border-t border-border bg-zinc-50 dark:bg-background" id="features">
         <div className="max-w-6xl mx-auto px-6">
           <div className="grid md:grid-cols-3 gap-8">
@@ -347,9 +335,7 @@ export default function LandingPage() {
         </div>
       </section>
 
-      {/* ---------------------------------------------------------------------------------- */}
       {/* FOOTER */}
-      {/* ---------------------------------------------------------------------------------- */}
       <footer className="py-20 border-t border-border bg-background">
         <div className="max-w-7xl mx-auto px-6">
           <div className="grid grid-cols-2 md:grid-cols-4 gap-8 mb-16">
@@ -402,7 +388,7 @@ export default function LandingPage() {
   );
 }
 
-// Minimalist Feature Card - FORCED DARK THEME TO MATCH BENTO
+// Feature Card - Updated to forced Dark Theme
 function FeatureCard({ icon: Icon, title, desc }: any) {
   return (
     <div className="p-6 rounded-[24px] bg-zinc-900 border border-zinc-800 hover:border-zinc-700 hover:shadow-lg transition-all group duration-300">

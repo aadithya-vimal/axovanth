@@ -90,7 +90,7 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
           <div className="glass-panel w-full max-w-xl rounded-3xl shadow-2xl border border-white/10 overflow-hidden animate-in fade-in zoom-in duration-200">
             <div className="p-4 flex items-center gap-3 border-b border-white/5">
               <Search className="w-5 h-5 text-muted" />
-              <input autoFocus placeholder="Search Axovanth OS..." className="bg-transparent border-none outline-none w-full text-lg font-medium text-foreground" />
+              <input autoFocus placeholder="Search Axovanth..." className="bg-transparent border-none outline-none w-full text-lg font-medium text-foreground" />
               <div className="px-2 py-1 bg-foreground/5 rounded text-[10px] font-bold text-muted">ESC</div>
             </div>
             <div className="p-4 space-y-1">
@@ -117,8 +117,9 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
              </div>
              <div className="min-w-0">
                <h2 className="font-bold text-foreground text-sm truncate leading-tight">{company.name}</h2>
+               {/* RENAMED: Premium OS -> Premium Platform */}
                <span className="text-[10px] text-accent font-bold uppercase tracking-widest">
-                 Premium OS
+                 Premium Platform
                </span>
              </div>
           </div>
