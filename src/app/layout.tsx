@@ -3,6 +3,9 @@ import { Inter } from "next/font/google";
 import "./globals.css";
 import { ConvexClientProvider } from "@/components/providers/convex-provider";
 
+// THE GOD-TIER FIX: Enforce Edge Runtime for the entire OS
+export const runtime = "edge";
+
 const inter = Inter({ 
   subsets: ["latin"],
   variable: "--font-inter", 
