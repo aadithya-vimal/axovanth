@@ -8,9 +8,10 @@ import { useTheme } from "next-themes";
 import { 
   PlusCircle, Ticket, FolderRoot, ChevronRight, MessageSquare,
   ShieldAlert, Building2, Layers, Search, Command, Globe, Zap, Loader2,
-  Menu, X, Sun, Moon, Settings, LogOut, Lock
+  Menu, X, Sun, Moon, Settings, LogOut, Lock, ArrowRight
 } from "lucide-react";
 import { UserButton, SignOutButton } from "@clerk/nextjs";
+import { Id } from "../../../../convex/_generated/dataModel";
 
 export default function DashboardLayout({ children }: { children: React.ReactNode }) {
   const params = useParams();
@@ -22,6 +23,13 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
   const [isSearchOpen, setIsSearchOpen] = useState(false);
   const [isSidebarOpen, setIsSidebarOpen] = useState(false);
   
+  // Modal State for Locked Workspaces
+  const [accessRequestModal, setAccessRequestModal] = useState<{
+    isOpen: boolean;
+    workspaceId: Id<"workspaces"> | null;
+    workspaceName: string;
+  }>({ isOpen: false, workspaceId: null, workspaceName: "" });
+
   const company = useQuery(api.companies.getById, { id: companyId });
   const workspaces = useQuery(api.workspaces.getByCompany, { companyId });
   const userMember = useQuery(api.companies.getMemberRecord, { companyId });
@@ -41,14 +49,18 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
     return () => document.removeEventListener("keydown", down);
   }, []);
 
-  const handleLockClick = async (wsId: string) => {
-    if (confirm("This workspace is locked. Request access?")) {
-      try {
-        await requestAccess({ workspaceId: wsId as any });
-        alert("Request sent to workspace admins.");
-      } catch (e: any) {
-        alert(e.message);
-      }
+  const handleLockClick = (wsId: Id<"workspaces">, wsName: string) => {
+    setAccessRequestModal({ isOpen: true, workspaceId: wsId, workspaceName: wsName });
+  };
+
+  const confirmRequest = async () => {
+    if (!accessRequestModal.workspaceId) return;
+    try {
+      await requestAccess({ workspaceId: accessRequestModal.workspaceId });
+      alert("Request transmitted to workspace administrators.");
+      setAccessRequestModal({ isOpen: false, workspaceId: null, workspaceName: "" });
+    } catch (e: any) {
+      alert(e.message);
     }
   };
 
@@ -84,6 +96,49 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
 
   return (
     <div className="flex h-screen bg-background overflow-hidden font-sans">
+      
+      {/* ---------------------------------------------------------------------- */}
+      {/* ACCESS REQUEST MODAL */}
+      {/* ---------------------------------------------------------------------- */}
+      {accessRequestModal.isOpen && (
+        <div className="fixed inset-0 z-[200] flex items-center justify-center bg-black/60 backdrop-blur-md p-4 animate-in fade-in duration-200">
+          <div className="glass-panel max-w-sm w-full p-8 rounded-[32px] shadow-2xl border-border bg-background relative animate-in zoom-in-95">
+            <button 
+              onClick={() => setAccessRequestModal({ ...accessRequestModal, isOpen: false })} 
+              className="absolute top-4 right-4 p-2 bg-foreground/5 rounded-full hover:bg-foreground/10 transition-colors"
+            >
+              <X className="w-4 h-4 text-foreground" />
+            </button>
+            
+            <div className="w-12 h-12 bg-accent/10 text-accent rounded-2xl flex items-center justify-center mb-6 mx-auto border border-accent/20">
+              <Lock className="w-6 h-6" />
+            </div>
+            
+            <div className="text-center mb-8">
+              <h3 className="text-xl font-bold mb-2 text-foreground tracking-tight">Restricted Access</h3>
+              <p className="text-muted text-sm leading-relaxed px-2 font-normal">
+                You do not have clearance for <span className="font-bold text-foreground">{accessRequestModal.workspaceName}</span>.
+                Request entry from the administrators?
+              </p>
+            </div>
+            
+            <button 
+              onClick={confirmRequest} 
+              className="apple-button w-full justify-center shadow-lg shadow-accent/20 mb-3"
+            >
+              Send Access Request <ArrowRight className="w-4 h-4 ml-2" />
+            </button>
+            
+            <button 
+              onClick={() => setAccessRequestModal({ ...accessRequestModal, isOpen: false })} 
+              className="w-full py-3 rounded-xl bg-foreground/5 font-semibold text-xs uppercase tracking-wider border border-border hover:bg-foreground/10 transition-colors"
+            >
+              Cancel
+            </button>
+          </div>
+        </div>
+      )}
+
       {/* OMNIBAR */}
       {isSearchOpen && (
         <div className="fixed inset-0 z-[100] flex items-start justify-center pt-[15vh] bg-black/40 backdrop-blur-md p-4">
@@ -152,7 +207,7 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
                   href={`/dashboard/${companyId}/ws/${ws._id}`} 
                   active={pathname === `/dashboard/${companyId}/ws/${ws._id}`}
                   locked={isLocked}
-                  onClick={() => handleLockClick(ws._id)}
+                  onClick={() => handleLockClick(ws._id, ws.name)}
                 />
               );
             })}

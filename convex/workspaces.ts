@@ -11,7 +11,6 @@ export const getByCompany = query({
   },
 });
 
-// NEW: To check which workspaces the user is actually IN
 export const getMyMemberships = query({
   args: { companyId: v.id("companies") },
   handler: async (ctx, args) => {
@@ -21,8 +20,6 @@ export const getMyMemberships = query({
     if (!user) return [];
 
     const memberships = await ctx.db.query("workspaceMembers").withIndex("by_user", q => q.eq("userId", user._id)).collect();
-    // Filter by company implicitly via the workspace
-    // Efficiently we might want a join or filter, but iterating is okay for reasonable scales
     const myWorkspaceIds = [];
     for (const m of memberships) {
       const ws = await ctx.db.get(m.workspaceId);
@@ -60,9 +57,6 @@ export const requestAccess = mutation({
 export const getRequests = query({
   args: { companyId: v.id("companies") },
   handler: async (ctx, args) => {
-    // Only return requests for workspaces in this company
-    // For simplicity, we fetch all workspaces then requests. 
-    // Optimized: In production, use an index or separate 'companyWorkspaceRequests' table.
     const workspaces = await ctx.db.query("workspaces").withIndex("by_company", q => q.eq("companyId", args.companyId)).collect();
     const workspaceIds = workspaces.map(w => w._id);
     
@@ -89,7 +83,6 @@ export const resolveAccessRequest = mutation({
     await ctx.db.patch(args.requestId, { status: args.approved ? "approved" : "rejected" });
 
     if (args.approved) {
-      // Add to workspace
       await ctx.db.insert("workspaceMembers", {
         workspaceId: req.workspaceId,
         userId: req.userId,
@@ -211,15 +204,31 @@ export const create = mutation({
     }
 
     const n = args.name.toLowerCase();
-    let emoji = "📂";
-    if (n.includes("tech") || n.includes("dev") || n.includes("engineer")) emoji = "💻";
-    else if (n.includes("market") || n.includes("growth")) emoji = "📈";
-    else if (n.includes("sales") || n.includes("finance")) emoji = "💰";
-    else if (n.includes("design") || n.includes("art")) emoji = "🎨";
-    else if (n.includes("legal")) emoji = "⚖️";
-    else if (n.includes("hr") || n.includes("human")) emoji = "👥";
-    else if (n.includes("ops")) emoji = "⚙️";
-    else if (n.includes("support")) emoji = "🎧";
+    let emoji = "📂"; // Default
+
+    // INTELLIGENT EMOJI MAPPING
+    const map = [
+      { keys: ["tech", "dev", "code", "stack", "engineer", "infra", "sys", "compute"], icon: "💻" },
+      { keys: ["market", "growth", "seo", "ad", "brand", "content", "social"], icon: "📈" },
+      { keys: ["sales", "rev", "money", "finance", "bill", "account", "tax"], icon: "💰" },
+      { keys: ["design", "art", "ui", "ux", "creative", "studio"], icon: "🎨" },
+      { keys: ["legal", "law", "policy", "compliance", "audit"], icon: "⚖️" },
+      { keys: ["hr", "human", "people", "recruit", "talent", "culture"], icon: "👥" },
+      { keys: ["ops", "operation", "logist", "supply", "admin"], icon: "⚙️" },
+      { keys: ["support", "help", "customer", "service", "care"], icon: "🎧" },
+      { keys: ["product", "roadmap", "feature", "spec"], icon: "🚀" },
+      { keys: ["data", "analytic", "science", "bi", "insight"], icon: "📊" },
+      { keys: ["exec", "ceo", "board", "strategy"], icon: "👔" },
+      { keys: ["qa", "test", "quality"], icon: "🧪" },
+      { keys: ["security", "sec", "cyber", "guard"], icon: "🛡️" },
+    ];
+
+    for (const entry of map) {
+      if (entry.keys.some(k => n.includes(k))) {
+        emoji = entry.icon;
+        break;
+      }
+    }
 
     const workspaceId = await ctx.db.insert("workspaces", {
       companyId: args.companyId,
@@ -229,7 +238,6 @@ export const create = mutation({
       isDefault: false,
     });
 
-    // Note: Creator is added as admin, but other employees must request access
     await ctx.db.insert("workspaceMembers", {
       workspaceId,
       userId: user._id,
