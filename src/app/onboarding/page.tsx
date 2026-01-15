@@ -7,6 +7,7 @@ import { useRouter } from "next/navigation";
 import { SignOutButton, useUser } from "@clerk/nextjs";
 import { useTheme } from "next-themes";
 import { Plus, Search, ArrowRight, Loader2, LogOut, CheckCircle2, AlertCircle, Sun, Moon, LayoutGrid } from "lucide-react";
+import { Id } from "../../../convex/_generated/dataModel";
 
 export default function OnboardingPage() {
   const [companyName, setCompanyName] = useState("");
@@ -44,7 +45,8 @@ export default function OnboardingPage() {
   const handleJoin = async (companyId: string) => {
     setRequestStatus(prev => ({ ...prev, [companyId]: 'loading' }));
     try {
-      await requestAccess({ companyId });
+      // FIX: Explicitly cast the string to the Convex ID type
+      await requestAccess({ companyId: companyId as Id<"companies"> });
       setRequestStatus(prev => ({ ...prev, [companyId]: 'success' }));
     } catch (error: any) {
       if (error.message.includes("Membership already exists")) {
@@ -85,7 +87,6 @@ export default function OnboardingPage() {
       <div className="max-w-4xl w-full mt-10">
         <header className="mb-12 text-center">
           <h1 className="text-3xl font-bold tracking-tight text-foreground">Setup your workspace</h1>
-          {/* RENAMED from Enterprise OS Initialization */}
           <p className="text-muted mt-2 italic font-medium">Axovanth Enterprise Initialization</p>
           <div className="mt-4 inline-block px-4 py-1 bg-accent/10 text-accent rounded-full text-xs font-bold uppercase tracking-widest border border-accent/20">
             Identity: {user?.fullName || "Verified User"}
