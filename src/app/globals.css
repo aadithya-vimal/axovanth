@@ -1,86 +1,80 @@
-@import "tailwindcss";
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
 
-@theme {
-  --color-background: var(--background);
-  --color-foreground: var(--foreground);
-  --color-accent: #0071e3;
-  --color-glass: var(--glass);
+@layer base {
+  :root {
+    --background: #fbfbfd;
+    --foreground: #1d1d1f;
+    --glass: rgba(255, 255, 255, 0.75);
+    --border: rgba(0, 0, 0, 0.08);
+    --muted: #86868b;
+    --accent: #0071e3;
+    
+    /* Font Variable Backup */
+    --font-sans: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
+  }
+
+  .dark {
+    --background: #000000;
+    --foreground: #f5f5f7;
+    --glass: rgba(22, 22, 23, 0.8);
+    --border: rgba(255, 255, 255, 0.15);
+    --muted: #a1a1a6;
+    --accent: #2997ff;
+  }
+}
+
+@layer base {
+  body {
+    @apply bg-background text-foreground font-sans antialiased;
+    font-feature-settings: "cv02", "cv03", "cv04", "cv11";
+    transition: background-color 0.4s ease, color 0.4s ease;
+  }
+}
+
+@layer components {
+  .glass-panel {
+    background: var(--glass);
+    backdrop-filter: saturate(180%) blur(24px);
+    -webkit-backdrop-filter: saturate(180%) blur(24px);
+    border: 1px solid var(--border);
+  }
+
+  .apple-button {
+    @apply px-6 py-3 rounded-full transition-all duration-300 active:scale-95 font-semibold flex items-center justify-center gap-2 text-white;
+    background-color: var(--accent);
+    font-size: 0.95rem; 
+    letter-spacing: -0.01em;
+  }
   
-  --font-sans: var(--font-inter), -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif; 
-}
+  .apple-button:hover {
+    filter: brightness(1.1);
+    box-shadow: 0 4px 12px rgba(0, 113, 227, 0.15);
+  }
 
-:root {
-  --background: #fbfbfd;
-  --foreground: #1d1d1f;
-  --glass: rgba(255, 255, 255, 0.75);
-  --border: rgba(0, 0, 0, 0.08);
-  --muted: #86868b;
-}
+  .input-field {
+    @apply w-full px-4 py-3.5 rounded-xl border bg-white/50 dark:bg-white/5 outline-none transition-all;
+    border-color: var(--border);
+    color: var(--foreground);
+    font-size: 0.95rem;
+  }
 
-[data-theme='dark'] {
-  --background: #000000;
-  --foreground: #f5f5f7;
-  --glass: rgba(22, 22, 23, 0.8);
-  --border: rgba(255, 255, 255, 0.15);
-  --muted: #a1a1a6;
-}
-
-body {
-  background-color: var(--background);
-  color: var(--foreground);
-  font-family: var(--font-sans);
-  font-feature-settings: "cv02", "cv03", "cv04", "cv11";
-  letter-spacing: -0.011em; 
-  -webkit-font-smoothing: antialiased;
-  -moz-osx-font-smoothing: grayscale;
-  transition: background-color 0.4s ease, color 0.4s ease;
-}
-
-.glass-panel {
-  background: var(--glass);
-  backdrop-filter: saturate(180%) blur(24px);
-  -webkit-backdrop-filter: saturate(180%) blur(24px);
-  border: 1px solid var(--border);
-}
-
-.text-muted {
-  color: var(--muted);
-}
-
-.apple-button {
-  @apply px-6 py-3 rounded-full transition-all duration-300 active:scale-95 font-semibold flex items-center justify-center gap-2;
-  background-color: #0071e3;
-  color: white !important;
-  font-size: 0.95rem; 
-  letter-spacing: -0.01em;
-}
-
-.apple-button:hover {
-  background-color: #0077ED;
-  box-shadow: 0 4px 12px rgba(0, 113, 227, 0.15);
-}
-
-.input-field {
-  @apply w-full px-4 py-3.5 rounded-xl border bg-white/50 dark:bg-white/5 outline-none transition-all;
-  border-color: var(--border);
-  color: var(--foreground);
-  font-size: 0.95rem;
-}
-
-.input-field:focus {
-  border-color: #0071e3;
-  box-shadow: 0 0 0 4px rgba(0, 113, 227, 0.1); 
-}
-
-/* Custom Scrollbar */
-.custom-scrollbar::-webkit-scrollbar {
-  width: 6px;
-}
-.custom-scrollbar::-webkit-scrollbar-track {
-  background: transparent;
-}
-.custom-scrollbar::-webkit-scrollbar-thumb {
-  background-color: var(--muted);
-  border-radius: 20px;
-  opacity: 0.2;
+  .input-field:focus {
+    border-color: var(--accent);
+    box-shadow: 0 0 0 4px rgba(0, 113, 227, 0.1); 
+  }
+  
+  /* Custom Scrollbar */
+  .custom-scrollbar::-webkit-scrollbar {
+    width: 6px;
+  }
+  .custom-scrollbar::-webkit-scrollbar-track {
+    background: transparent;
+  }
+  .custom-scrollbar::-webkit-scrollbar-thumb {
+    background-color: var(--muted);
+    border-radius: 20px;
+    opacity: 0.2;
+  }
 }
