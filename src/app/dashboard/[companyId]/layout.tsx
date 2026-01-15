@@ -8,10 +8,19 @@ import { useTheme } from "next-themes";
 import { 
   PlusCircle, Ticket, FolderRoot, ChevronRight, MessageSquare,
   ShieldAlert, Building2, Layers, Search, Command, Globe, Zap, Loader2,
-  Menu, X, Sun, Moon, Settings, LogOut, Lock, ArrowRight
+  Menu, X, Sun, Moon, Settings, LogOut, Lock, ArrowRight, UserCog,
+  // IMPORT NEW ICONS FOR WORKSPACES
+  Terminal, TrendingUp, BadgeDollarSign, Palette, Scale, Users, Settings2,
+  LifeBuoy, Rocket, Database, Briefcase, Bug, ShieldCheck, Box, FolderKanban
 } from "lucide-react";
 import { UserButton, SignOutButton } from "@clerk/nextjs";
 import { Id } from "../../../../convex/_generated/dataModel";
+
+// Icon Mapping Registry
+const WorkspaceIconMap: Record<string, any> = {
+  Terminal, TrendingUp, BadgeDollarSign, Palette, Scale, Users, 
+  Settings2, LifeBuoy, Rocket, Database, Briefcase, Bug, ShieldCheck, Box, FolderKanban
+};
 
 export default function DashboardLayout({ children }: { children: React.ReactNode }) {
   const params = useParams();
@@ -71,6 +80,11 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
   );
 
   const defaultWsId = workspaces.find(w => w.isDefault)?._id || workspaces[0]?._id;
+
+  // Helper function to resolve icon string to component
+  const getWsIcon = (iconName: string) => {
+    return WorkspaceIconMap[iconName] || Layers; // Fallback to Layers
+  };
 
   const NavItem = ({ icon: Icon, label, href, active, badge, locked, onClick }: any) => (
     <button
@@ -199,10 +213,13 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
             <span className="text-[10px] font-bold text-muted uppercase tracking-widest px-3 mb-2 block">Departments</span>
             {workspaces.map(ws => {
               const isLocked = !myWsIds.includes(ws._id);
+              // DYNAMIC ICON LOOKUP
+              const WsIcon = getWsIcon(ws.emoji);
+
               return (
                 <NavItem 
                   key={ws._id} 
-                  icon={Layers} 
+                  icon={WsIcon} 
                   label={ws.name} 
                   href={`/dashboard/${companyId}/ws/${ws._id}`} 
                   active={pathname === `/dashboard/${companyId}/ws/${ws._id}`}
@@ -238,23 +255,27 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
           </div>
 
           {/* ADMINISTRATION SECTION */}
-          {userMember?.role === "admin" && (
-            <div className="space-y-1">
-              <span className="text-[10px] font-bold text-muted uppercase tracking-widest px-3 mb-2 block">Governance</span>
+          <div className="space-y-1">
+            <span className="text-[10px] font-bold text-muted uppercase tracking-widest px-3 mb-2 block">Governance</span>
+            
+            {/* AVAILABLE TO ALL */}
+            <NavItem 
+              icon={Settings} 
+              label="Settings" 
+              href={`/dashboard/${companyId}/settings`} 
+              active={pathname.includes("/settings")}
+            />
+
+            {/* ADMIN ONLY */}
+            {userMember?.role === "admin" && (
               <NavItem 
                 icon={ShieldAlert} 
                 label="Admin Center" 
                 href={`/dashboard/${companyId}/admin`} 
                 active={pathname.includes("/admin")} 
               />
-              <NavItem 
-                icon={Settings} 
-                label="System Config" 
-                href={`/dashboard/${companyId}/settings`} 
-                active={pathname.includes("/settings")}
-              />
-            </div>
-          )}
+            )}
+          </div>
         </nav>
 
         {/* BOTTOM SECTION WITH LOGOUT */}

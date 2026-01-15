@@ -6,7 +6,8 @@ import { api } from "../../../../../convex/_generated/api";
 import { useParams } from "next/navigation";
 import { 
   Ticket, Hash, Loader2, ArrowRightLeft, X, Send, AlertCircle, ChevronRight, 
-  User, RefreshCw, Check, Calendar, Flag, Clock, History, MessageSquare, AlertTriangle, Plus
+  User, RefreshCw, Check, Calendar, Flag, Clock, History, MessageSquare, AlertTriangle, Plus,
+  Layout, List
 } from "lucide-react";
 import { useUser } from "@clerk/nextjs";
 
@@ -42,6 +43,7 @@ export default function OperationalWorkflow() {
   // UI State
   const [selectedTicketId, setSelectedTicketId] = useState<string | null>(null);
   const [tab, setTab] = useState<'chat' | 'audit'>('chat');
+  const [viewMode, setViewMode] = useState<'list' | 'board'>('list'); // Kanban Toggle
   const [confirmAction, setConfirmAction] = useState<{type: 'resolve' | 'reopen' | 'transfer', targetId?: string} | null>(null);
   const [commentText, setCommentText] = useState("");
   const [isTransferring, setIsTransferring] = useState(false);
@@ -96,8 +98,50 @@ export default function OperationalWorkflow() {
     </div>
   );
 
+  const KanbanColumn = ({ status, label }: { status: string, label: string }) => {
+    const columnTickets = tickets.filter(t => t.status === status);
+    
+    return (
+      <div className="flex-1 min-w-[300px] flex flex-col gap-4">
+        <div className="flex items-center justify-between px-2">
+          <h3 className="text-xs font-bold uppercase tracking-wider text-muted flex items-center gap-2">
+            <span className={`w-2 h-2 rounded-full ${status === 'open' ? 'bg-blue-500' : status === 'in_progress' ? 'bg-orange-500' : 'bg-green-500'}`} />
+            {label} ({columnTickets.length})
+          </h3>
+        </div>
+        <div className="flex-1 bg-foreground/[0.02] rounded-2xl p-2 space-y-3 min-h-[500px] border border-border/50">
+          {columnTickets.map(ticket => (
+            <div 
+              key={ticket._id}
+              onClick={() => setSelectedTicketId(ticket._id)}
+              className="p-4 rounded-xl bg-background border border-border hover:border-accent/50 cursor-pointer shadow-sm group transition-all"
+            >
+              <div className="flex justify-between items-start mb-2">
+                <span className={`px-2 py-0.5 rounded text-[10px] font-bold uppercase ${
+                  ticket.priority === 'high' ? 'bg-red-500/10 text-red-500' : 'bg-blue-500/10 text-blue-500'
+                }`}>
+                  {ticket.priority}
+                </span>
+                <span className="text-[10px] text-muted">{ticket.workspace?.name}</span>
+              </div>
+              <h4 className="text-sm font-bold text-foreground mb-2 line-clamp-2">{ticket.title}</h4>
+              <div className="flex items-center justify-between mt-3 pt-3 border-t border-border/50">
+                <div className="flex items-center gap-2">
+                   <div className="w-5 h-5 rounded-full bg-foreground/10 flex items-center justify-center text-[9px] font-bold">
+                     {ticket.assignee?.name?.[0] || "?"}
+                   </div>
+                </div>
+                <span className="text-[10px] text-muted">{new Date(ticket._creationTime).toLocaleDateString()}</span>
+              </div>
+            </div>
+          ))}
+        </div>
+      </div>
+    );
+  };
+
   return (
-    <div className="max-w-7xl mx-auto space-y-8 pb-32 animate-in fade-in duration-700 font-sans">
+    <div className="max-w-7xl mx-auto space-y-8 pb-32 animate-in fade-in duration-700 font-sans h-full">
       
       {/* GLOBAL HEADER */}
       <header className="flex flex-col md:flex-row md:items-end justify-between border-b border-border pb-8 gap-6">
@@ -108,52 +152,75 @@ export default function OperationalWorkflow() {
           <h1 className="text-4xl font-semibold tracking-tight text-foreground">Operational Workflow</h1>
           <p className="text-muted text-lg font-normal">Centralized command for all departmental tickets.</p>
         </div>
+        
+        <div className="flex bg-foreground/5 p-1 rounded-xl">
+          <button 
+            onClick={() => setViewMode('list')}
+            className={`px-4 py-2 rounded-lg text-xs font-bold uppercase tracking-wider flex items-center gap-2 transition-all ${viewMode === 'list' ? 'bg-background shadow-sm text-foreground' : 'text-muted hover:text-foreground'}`}
+          >
+            <List className="w-4 h-4" /> List
+          </button>
+          <button 
+            onClick={() => setViewMode('board')}
+            className={`px-4 py-2 rounded-lg text-xs font-bold uppercase tracking-wider flex items-center gap-2 transition-all ${viewMode === 'board' ? 'bg-background shadow-sm text-foreground' : 'text-muted hover:text-foreground'}`}
+          >
+            <Layout className="w-4 h-4" /> Board
+          </button>
+        </div>
       </header>
 
-      {/* TICKET LIST */}
-      <div className="space-y-4">
-        {tickets.length === 0 ? (
-          <div className="p-12 text-center border-2 border-dashed border-border rounded-3xl">
-            <p className="text-muted text-sm font-medium">No active flows in the system.</p>
-          </div>
-        ) : (
-          tickets.map((ticket) => (
-            <div 
-              key={ticket._id}
-              onClick={() => setSelectedTicketId(ticket._id)}
-              className="glass-panel p-6 rounded-2xl border border-border hover:border-accent/50 hover:bg-accent/[0.02] transition-all cursor-pointer group flex items-center justify-between"
-            >
-              <div className="flex items-center gap-6">
-                <div className={`w-12 h-12 rounded-xl flex items-center justify-center text-xl bg-foreground/5 border border-border`}>
-                  {ticket.workspace?.emoji || "📂"}
-                </div>
-                <div>
-                  <h3 className="font-semibold text-foreground tracking-tight">{ticket.title}</h3>
-                  <div className="flex items-center gap-3 mt-1">
-                    <span className="text-xs text-muted">{ticket.workspace?.name}</span>
-                    <span className="w-1 h-1 rounded-full bg-border" />
-                    <span className={`text-[10px] font-bold uppercase tracking-wider ${
-                      ticket.priority === 'high' ? 'text-red-500' : ticket.priority === 'medium' ? 'text-orange-500' : 'text-green-500'
-                    }`}>{ticket.priority}</span>
+      {/* VIEW SWITCHER */}
+      {viewMode === 'list' ? (
+        <div className="space-y-4">
+          {tickets.length === 0 ? (
+            <div className="p-12 text-center border-2 border-dashed border-border rounded-3xl">
+              <p className="text-muted text-sm font-medium">No active flows in the system.</p>
+            </div>
+          ) : (
+            tickets.map((ticket) => (
+              <div 
+                key={ticket._id}
+                onClick={() => setSelectedTicketId(ticket._id)}
+                className="glass-panel p-6 rounded-2xl border border-border hover:border-accent/50 hover:bg-accent/[0.02] transition-all cursor-pointer group flex items-center justify-between"
+              >
+                <div className="flex items-center gap-6">
+                  <div className={`w-12 h-12 rounded-xl flex items-center justify-center text-xl bg-foreground/5 border border-border`}>
+                    {ticket.workspace?.emoji || "📂"}
+                  </div>
+                  <div>
+                    <h3 className="font-semibold text-foreground tracking-tight">{ticket.title}</h3>
+                    <div className="flex items-center gap-3 mt-1">
+                      <span className="text-xs text-muted">{ticket.workspace?.name}</span>
+                      <span className="w-1 h-1 rounded-full bg-border" />
+                      <span className={`text-[10px] font-bold uppercase tracking-wider ${
+                        ticket.priority === 'high' ? 'text-red-500' : ticket.priority === 'medium' ? 'text-orange-500' : 'text-green-500'
+                      }`}>{ticket.priority}</span>
+                    </div>
                   </div>
                 </div>
-              </div>
-              <div className="flex items-center gap-4">
-                <div className="text-right hidden md:block">
-                  <p className="text-xs font-bold text-foreground">{ticket.assignee?.name || "Unassigned"}</p>
-                  <p className="text--[10px] text-muted uppercase tracking-wider">Assignee</p>
+                <div className="flex items-center gap-4">
+                  <div className="text-right hidden md:block">
+                    <p className="text-xs font-bold text-foreground">{ticket.assignee?.name || "Unassigned"}</p>
+                    <p className="text--[10px] text-muted uppercase tracking-wider">Assignee</p>
+                  </div>
+                  <div className={`px-3 py-1 rounded-full text-[10px] font-bold uppercase tracking-wider border ${
+                    ticket.status === 'open' ? 'bg-accent/10 text-accent border-accent/20' : 'bg-green-500/10 text-green-600 border-green-500/20'
+                  }`}>
+                    {ticket.status}
+                  </div>
+                  <ChevronRight className="w-4 h-4 text-muted group-hover:text-accent" />
                 </div>
-                <div className={`px-3 py-1 rounded-full text-[10px] font-bold uppercase tracking-wider border ${
-                  ticket.status === 'open' ? 'bg-accent/10 text-accent border-accent/20' : 'bg-green-500/10 text-green-600 border-green-500/20'
-                }`}>
-                  {ticket.status}
-                </div>
-                <ChevronRight className="w-4 h-4 text-muted group-hover:text-accent" />
               </div>
-            </div>
-          ))
-        )}
-      </div>
+            ))
+          )}
+        </div>
+      ) : (
+        <div className="flex gap-6 overflow-x-auto pb-6">
+          <KanbanColumn status="open" label="Open" />
+          <KanbanColumn status="in_progress" label="In Progress" />
+          <KanbanColumn status="resolved" label="Resolved" />
+        </div>
+      )}
 
       {/* ENHANCED DRAWER */}
       {selectedTicket && (

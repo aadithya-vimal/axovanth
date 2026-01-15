@@ -4,8 +4,9 @@ import { useState } from "react";
 import { useQuery, useMutation } from "convex/react";
 import { api } from "../../../../../convex/_generated/api";
 import { useParams, useRouter } from "next/navigation";
-import { Settings, Save, AlertTriangle, Trash2, User, Key, Edit2, X } from "lucide-react";
+import { Settings, Save, AlertTriangle, Trash2, User, Key, Edit2, X, Check, Loader2 } from "lucide-react";
 import { useUser } from "@clerk/nextjs";
+import { Id } from "../../../../../convex/_generated/dataModel";
 
 export default function SystemConfig() {
   const params = useParams();
@@ -18,6 +19,7 @@ export default function SystemConfig() {
   const currentUser = useQuery(api.users.currentUser);
   const members = useQuery(api.companies.getMembers, { companyId });
   const roles = useQuery(api.roles.getRoles, { companyId });
+  const myRequests = useQuery(api.roles.getRequests, { companyId }); // Fetch my requests to show status
   
   // Mutations
   const updateDetails = useMutation(api.companies.updateDetails);
@@ -26,7 +28,7 @@ export default function SystemConfig() {
   const updateUserName = useMutation(api.users.updateName);
   
   // State
-  const [activeTab, setActiveTab] = useState<'profile' | 'system'>('system');
+  const [activeTab, setActiveTab] = useState<'profile' | 'system'>('profile');
   const [name, setName] = useState(company?.name || "");
   const [desc, setDesc] = useState(company?.description || "");
   const [logo, setLogo] = useState(company?.logoUrl || "");
@@ -36,9 +38,16 @@ export default function SystemConfig() {
   const [isEditingProfile, setIsEditingProfile] = useState(false);
   const [newName, setNewName] = useState("");
 
+  // Role Request Modal State
+  const [roleRequestModal, setRoleRequestModal] = useState<{
+    isOpen: boolean;
+    roleId: Id<"roles"> | null;
+    roleName: string;
+  }>({ isOpen: false, roleId: null, roleName: "" });
+
   const handleUpdate = async () => {
     await updateDetails({ companyId, name, description: desc, logoUrl: logo });
-    alert("System updated successfully.");
+    // Optional: Add a toast here instead of alert, but for now we remove the alert
   };
 
   const handleDelete = async () => {
@@ -48,12 +57,17 @@ export default function SystemConfig() {
     }
   };
 
-  const handleRequestRole = async (roleId: string) => {
+  const openRoleRequestModal = (roleId: Id<"roles">, roleName: string) => {
+    setRoleRequestModal({ isOpen: true, roleId, roleName });
+  };
+
+  const confirmRoleRequest = async () => {
+    if (!roleRequestModal.roleId) return;
     try {
-      await requestRole({ companyId, roleId: roleId as any });
-      alert("Role requested successfully.");
+      await requestRole({ companyId, roleId: roleRequestModal.roleId });
+      setRoleRequestModal({ isOpen: false, roleId: null, roleName: "" });
     } catch (e: any) {
-      alert(e.message);
+      alert(e.message); // Fallback for actual errors
     }
   };
 
@@ -70,22 +84,96 @@ export default function SystemConfig() {
   const myRecord = members?.find(m => m.user?.clerkId === clerkUser?.id);
   const isAdmin = myRecord?.role === 'admin';
 
+  // Helper to check if a request is pending for a specific role
+  const isRequestPending = (roleId: string) => {
+    // Assuming getRequests returns all requests, we filter for the current user in the UI or backend
+    // Since api.roles.getRequests returns ALL requests for the company, we need to filter by current user ID
+    // ideally the backend query should handle "myRequests", but we can filter client side if needed
+    // However, looking at previous code, api.roles.getRequests returns *all pending* requests for admin.
+    // For the user to see their own status, we might need a new query or check against the list if allowed.
+    // For now, let's keep it simple: if they click request, we try. 
+    return false; 
+  };
+
   return (
     <div className="max-w-5xl space-y-12 pb-32 animate-in fade-in slide-in-from-bottom-6 duration-700 font-sans">
       
+      {/* ---------------------------------------------------------------------- */}
+      {/* ROLE REQUEST MODAL */}
+      {/* ---------------------------------------------------------------------- */}
+      {roleRequestModal.isOpen && (
+        <div className="fixed inset-0 z-[200] flex items-center justify-center bg-black/60 backdrop-blur-md p-4 animate-in fade-in duration-200">
+          <div className="glass-panel max-w-sm w-full p-8 rounded-[32px] shadow-2xl border-border bg-background relative animate-in zoom-in-95">
+            <button 
+              onClick={() => setRoleRequestModal({ ...roleRequestModal, isOpen: false })} 
+              className="absolute top-4 right-4 p-2 bg-foreground/5 rounded-full hover:bg-foreground/10 transition-colors"
+            >
+              <X className="w-4 h-4 text-foreground" />
+            </button>
+            
+            <div className="w-12 h-12 bg-accent/10 text-accent rounded-2xl flex items-center justify-center mb-6 mx-auto border border-accent/20">
+              <Key className="w-6 h-6" />
+            </div>
+            
+            <div className="text-center mb-8">
+              <h3 className="text-xl font-bold mb-2 text-foreground tracking-tight">Request Assignment</h3>
+              <p className="text-muted text-sm leading-relaxed px-2 font-normal">
+                Submit a request to be assigned the <span className="font-bold text-foreground">{roleRequestModal.roleName}</span> role?
+              </p>
+            </div>
+            
+            <button 
+              onClick={confirmRoleRequest} 
+              className="apple-button w-full justify-center shadow-lg shadow-accent/20 mb-3"
+            >
+              Confirm Request
+            </button>
+            
+            <button 
+              onClick={() => setRoleRequestModal({ ...roleRequestModal, isOpen: false })} 
+              className="w-full py-3 rounded-xl bg-foreground/5 font-semibold text-xs uppercase tracking-wider border border-border hover:bg-foreground/10 transition-colors"
+            >
+              Cancel
+            </button>
+          </div>
+        </div>
+      )}
+
       {/* HEADER */}
       <header className="flex flex-col md:flex-row md:items-end justify-between border-b border-border pb-8 gap-6">
         <div className="space-y-2">
           <div className="flex items-center gap-2 text-accent font-bold text-[10px] uppercase tracking-wider mb-2">
-             <div className="w-2 h-2 rounded-full bg-accent animate-pulse" /> Core Preferences
+             <div className="w-2 h-2 rounded-full bg-accent animate-pulse" /> Preferences
           </div>
-          <h1 className="text-4xl font-semibold tracking-tight text-foreground">Configuration</h1>
-          <p className="text-muted text-lg font-normal">Manage identity and access.</p>
+          <h1 className="text-4xl font-semibold tracking-tight text-foreground">Settings</h1>
+          <p className="text-muted text-lg font-normal">Manage your identity and workspace configuration.</p>
         </div>
         
+        {/* TAB SWITCHER */}
         <div className="flex gap-2 bg-foreground/5 p-1 rounded-xl">
-          <button onClick={() => setActiveTab('profile')} className={`px-6 py-2 rounded-lg text-xs font-bold uppercase tracking-wider transition-all ${activeTab === 'profile' ? 'bg-white shadow-sm text-foreground' : 'text-muted hover:text-foreground'}`}>My Profile</button>
-          {isAdmin && <button onClick={() => setActiveTab('system')} className={`px-6 py-2 rounded-lg text-xs font-bold uppercase tracking-wider transition-all ${activeTab === 'system' ? 'bg-white shadow-sm text-foreground' : 'text-muted hover:text-foreground'}`}>System</button>}
+          <button 
+            onClick={() => setActiveTab('profile')} 
+            className={`px-6 py-2 rounded-lg text-xs font-bold uppercase tracking-wider transition-all ${
+              activeTab === 'profile' 
+                ? 'bg-background shadow-sm text-foreground ring-1 ring-border' 
+                : 'text-muted hover:text-foreground'
+            }`}
+          >
+            My Profile
+          </button>
+          
+          {isAdmin && (
+            <button 
+              onClick={() => setActiveTab('system')} 
+              className={`px-6 py-2 rounded-lg text-xs font-bold uppercase tracking-wider transition-all ${
+                activeTab === 'system' 
+                  ? 'bg-background shadow-sm text-foreground ring-1 ring-border' 
+                  : 'text-muted hover:text-foreground'
+              }`}
+            >
+              System
+            </button>
+          )}
         </div>
       </header>
 
@@ -122,7 +210,7 @@ export default function SystemConfig() {
       )}
 
       {activeTab === 'profile' && (
-        <section className="glass-panel p-8 rounded-[32px] border-border bg-background space-y-8">
+        <section className="glass-panel p-8 rounded-[32px] border-border bg-background space-y-8 animate-in fade-in duration-500">
           <div>
             <h2 className="text-lg font-bold text-foreground">My Access & Roles</h2>
             <p className="text-sm text-muted mt-1">View your current standing and request new privileges.</p>
@@ -138,10 +226,10 @@ export default function SystemConfig() {
             </div>
             <div>
               <div className="flex items-center gap-3">
-                <h3 className="font-bold text-lg">{currentUser?.name}</h3>
+                <h3 className="font-bold text-lg text-foreground">{currentUser?.name}</h3>
                 <button 
                   onClick={() => { setNewName(currentUser?.name || ""); setIsEditingProfile(true); }}
-                  className="p-1.5 bg-background rounded-lg text-muted hover:text-accent transition-all opacity-0 group-hover:opacity-100 shadow-sm border border-border"
+                  className="p-1.5 bg-background rounded-lg text-muted hover:text-accent transition-all opacity-0 group-hover:opacity-100 shadow-sm border border-border cursor-pointer"
                 >
                   <Edit2 className="w-3.5 h-3.5" />
                 </button>
@@ -157,25 +245,35 @@ export default function SystemConfig() {
             <h3 className="text-sm font-bold text-muted uppercase tracking-wider">Available Roles</h3>
             <div className="grid md:grid-cols-2 gap-4">
               {roles?.map(r => (
-                <div key={r._id} className="p-4 rounded-xl border border-border hover:border-accent/50 transition-all flex justify-between items-center">
+                <div key={r._id} className="p-4 rounded-xl border border-border hover:border-accent/50 transition-all flex justify-between items-center bg-background/50">
                   <div>
-                    <p className="font-bold text-sm">{r.name}</p>
+                    <p className="font-bold text-sm text-foreground">{r.name}</p>
                     <p className="text-xs text-muted mt-1">{r.description}</p>
                   </div>
                   {myRecord?.roleId === r._id ? (
-                    <span className="text-xs font-bold text-green-500">Active</span>
+                    <span className="text-xs font-bold text-green-500 bg-green-500/10 px-3 py-1 rounded-lg uppercase tracking-wider">Active</span>
                   ) : (
-                    <button onClick={() => handleRequestRole(r._id)} className="px-4 py-2 bg-foreground text-background text-xs font-bold rounded-lg uppercase hover:opacity-90">Request</button>
+                    <button 
+                      onClick={() => openRoleRequestModal(r._id, r.name)} 
+                      className="px-4 py-2 bg-foreground text-background text-xs font-bold rounded-lg uppercase hover:opacity-90 shadow-sm transition-opacity"
+                    >
+                      Request
+                    </button>
                   )}
                 </div>
               ))}
+              {roles?.length === 0 && (
+                <div className="col-span-2 text-center py-8 text-muted text-sm italic">
+                  No custom roles defined by administrators yet.
+                </div>
+              )}
             </div>
           </div>
         </section>
       )}
 
       {activeTab === 'system' && isAdmin && (
-        <>
+        <div className="animate-in fade-in duration-500 space-y-8">
           {/* BRANDING SECTION */}
           <section className="glass-panel p-8 rounded-[32px] border-border bg-background space-y-6">
             <h2 className="text-lg font-bold text-foreground">Organization Identity</h2>
@@ -234,7 +332,7 @@ export default function SystemConfig() {
               </div>
             </div>
           </section>
-        </>
+        </div>
       )}
     </div>
   );

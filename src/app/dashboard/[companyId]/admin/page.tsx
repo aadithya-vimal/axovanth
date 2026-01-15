@@ -10,9 +10,19 @@ import {
   AlertTriangle, X, Loader2, Zap, Info, ChevronDown,
   ShieldAlert, UserCog, Building, Lock, Check,
   Activity, Globe, Fingerprint, Cpu, Database, Users, 
-  ArrowRight, Edit2, Save, Layers, Inbox, UserPlus
+  ArrowRight, Edit2, Save, Layers, Inbox, UserPlus,
+  // NEW ICONS
+  Terminal, TrendingUp, BadgeDollarSign, Palette, Scale,
+  LifeBuoy, Rocket, Bug, Box, FolderKanban
 } from "lucide-react";
 import { useUser } from "@clerk/nextjs";
+import { Id } from "../../../../../convex/_generated/dataModel";
+
+// Icon Registry (Must match Layout)
+const WorkspaceIconMap: Record<string, any> = {
+  Terminal, TrendingUp, BadgeDollarSign, Palette, Scale, Users, 
+  Settings2, LifeBuoy, Rocket, Database, Briefcase, Bug, ShieldCheck, Box, FolderKanban
+};
 
 export default function AdminDashboard() {
   const params = useParams();
@@ -28,6 +38,7 @@ export default function AdminDashboard() {
   const [memberToRemove, setMemberToRemove] = useState<any>(null);
   const [isCreateWorkspaceOpen, setIsCreateWorkspaceOpen] = useState(false);
   const [newWorkspaceName, setNewWorkspaceName] = useState("");
+  const [workspaceToDelete, setWorkspaceToDelete] = useState<{ id: Id<"workspaces">, name: string } | null>(null);
   
   // Workspace Management State
   const [selectedWorkspaceId, setSelectedWorkspaceId] = useState<string | null>(null);
@@ -43,6 +54,16 @@ export default function AdminDashboard() {
   const [tempDesignation, setTempDesignation] = useState("");
   const [tempRoleId, setTempRoleId] = useState("");
   const [tempSystemRole, setTempSystemRole] = useState("employee");
+  
+  // Request Decision Modal State
+  const [decisionModal, setDecisionModal] = useState<{
+    isOpen: boolean;
+    type: 'role' | 'workspace';
+    id: string; // requestId
+    action: 'approve' | 'reject';
+    userName: string;
+    targetName: string; // Role name or Workspace name
+  } | null>(null);
   
   // Dropdown UI State (for custom select inside modal)
   const [activeDropdown, setActiveDropdown] = useState<string | null>(null);
@@ -70,6 +91,7 @@ export default function AdminDashboard() {
   const removeMember = useMutation(api.companies.removeMember);
   
   const createWorkspace = useMutation(api.workspaces.create);
+  const deleteWorkspace = useMutation(api.workspaces.deleteWorkspace);
   const addWorkspaceMember = useMutation(api.workspaces.addMember);
   const updateWorkspaceRole = useMutation(api.workspaces.updateRole);
   const removeWorkspaceMember = useMutation(api.workspaces.removeMember);
@@ -109,6 +131,17 @@ export default function AdminDashboard() {
       alert("Provisioning Failed: " + e.message);
     }
   };
+
+  const handleDeleteWorkspace = async () => {
+    if (!workspaceToDelete) return;
+    try {
+        await deleteWorkspace({ workspaceId: workspaceToDelete.id });
+        setWorkspaceToDelete(null);
+        if (selectedWorkspaceId === workspaceToDelete.id) setSelectedWorkspaceId(null);
+    } catch (e: any) {
+        alert("Deletion Failed: " + e.message);
+    }
+  }
 
   const openEditModal = (member: any) => {
     setTempDesignation(member.designation || "");
@@ -151,6 +184,34 @@ export default function AdminDashboard() {
       alert(e.message);
     }
   }
+
+  // --- NEW: Decision Handling ---
+  const initiateDecision = (
+    type: 'role' | 'workspace', 
+    id: string, 
+    action: 'approve' | 'reject', 
+    userName: string, 
+    targetName: string
+  ) => {
+    setDecisionModal({ isOpen: true, type, id, action, userName, targetName });
+  };
+
+  const confirmDecision = async () => {
+    if (!decisionModal) return;
+    
+    try {
+      const isApproved = decisionModal.action === 'approve';
+      
+      if (decisionModal.type === 'role') {
+        await resolveRoleRequest({ requestId: decisionModal.id as Id<"roleRequests">, approved: isApproved });
+      } else {
+        await resolveWsRequest({ requestId: decisionModal.id as Id<"workspaceRequests">, approved: isApproved });
+      }
+      setDecisionModal(null);
+    } catch (e: any) {
+      alert("Processing failed: " + e.message);
+    }
+  };
 
   if (!members || !workspaces || !roles || !roleRequests || !workspaceRequests) return (
     <div className="flex items-center justify-center h-[70vh]">
@@ -209,8 +270,78 @@ export default function AdminDashboard() {
     <div className="max-w-7xl mx-auto space-y-12 pb-32 animate-in fade-in slide-in-from-bottom-4 duration-700 font-sans" onClick={() => { /* Close dropdowns if clicking background? Optional polish */ }}>
       
       {/* ---------------------------------------------------------------------- */}
-      {/* EDIT MEMBER MODAL (Styled Dropdowns) */}
+      {/* WORKSPACE DELETE MODAL */}
       {/* ---------------------------------------------------------------------- */}
+      {workspaceToDelete && (
+        <div className="fixed inset-0 z-[400] flex items-center justify-center bg-black/60 backdrop-blur-md p-4">
+          <div className="glass-panel max-w-sm w-full p-8 rounded-[32px] shadow-2xl border-red-500/20 bg-background animate-in zoom-in duration-200">
+            <div className="w-16 h-16 bg-red-500/10 rounded-2xl flex items-center justify-center mb-6 mx-auto border border-red-500/20">
+              <Trash2 className="text-red-600 w-8 h-8" />
+            </div>
+            <div className="text-center mb-8">
+              <h3 className="text-xl font-bold mb-2 text-foreground tracking-tight">Destroy Environment?</h3>
+              <p className="text-muted text-sm leading-relaxed px-2 font-normal">
+                Permamently delete <span className="font-bold text-foreground">{workspaceToDelete.name}</span> and all its data? This cannot be undone.
+              </p>
+            </div>
+            <div className="flex gap-3">
+              <button 
+                onClick={() => setWorkspaceToDelete(null)} 
+                className="flex-1 py-3 rounded-xl bg-foreground/5 font-semibold text-xs uppercase tracking-wider border border-border cursor-pointer hover:bg-foreground/10"
+              >
+                Abort
+              </button>
+              <button 
+                onClick={handleDeleteWorkspace} 
+                className="flex-1 py-3 rounded-xl bg-red-600 text-white font-semibold text-xs uppercase tracking-wider shadow-lg shadow-red-600/20 cursor-pointer hover:bg-red-700"
+              >
+                Destroy
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* ---------------------------------------------------------------------- */}
+      {/* DECISION CONFIRMATION MODAL */}
+      {/* ---------------------------------------------------------------------- */}
+      {decisionModal && (
+        <div className="fixed inset-0 z-[400] flex items-center justify-center bg-black/60 backdrop-blur-md p-4">
+          <div className="glass-panel max-w-sm w-full p-8 rounded-[32px] shadow-2xl border-border bg-background animate-in zoom-in duration-200">
+            <div className={`w-16 h-16 rounded-2xl flex items-center justify-center mb-6 mx-auto border ${decisionModal.action === 'approve' ? 'bg-green-500/10 border-green-500/20 text-green-600' : 'bg-red-500/10 border-red-500/20 text-red-600'}`}>
+              {decisionModal.action === 'approve' ? <Check className="w-8 h-8" /> : <X className="w-8 h-8" />}
+            </div>
+            
+            <div className="text-center mb-8">
+              <h3 className="text-xl font-bold mb-2 text-foreground tracking-tight">Confirm Decision</h3>
+              <p className="text-muted text-sm leading-relaxed px-2 font-normal">
+                Are you sure you want to <strong>{decisionModal.action.toUpperCase()}</strong> the request for <span className="font-bold text-foreground">{decisionModal.userName}</span> to access <span className="text-accent">{decisionModal.targetName}</span>?
+              </p>
+            </div>
+            
+            <div className="flex gap-3">
+              <button 
+                onClick={() => setDecisionModal(null)} 
+                className="flex-1 py-3 rounded-xl bg-foreground/5 font-semibold text-xs uppercase tracking-wider border border-border cursor-pointer hover:bg-foreground/10"
+              >
+                Cancel
+              </button>
+              <button 
+                onClick={confirmDecision} 
+                className={`flex-1 py-3 rounded-xl text-white font-semibold text-xs uppercase tracking-wider shadow-lg cursor-pointer ${
+                  decisionModal.action === 'approve' 
+                    ? 'bg-green-600 hover:bg-green-700 shadow-green-500/20' 
+                    : 'bg-red-600 hover:bg-red-700 shadow-red-500/20'
+                }`}
+              >
+                Confirm
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* EDIT MEMBER MODAL (Styled Dropdowns) */}
       {editMemberModal && (
         <div className="fixed inset-0 z-[300] flex items-center justify-center bg-black/40 backdrop-blur-md p-4">
           <div className="glass-panel max-w-sm w-full p-8 rounded-[32px] shadow-2xl border-border bg-background animate-in zoom-in duration-200">
@@ -450,23 +581,37 @@ export default function AdminDashboard() {
                 </button>
                 
                 <div className="space-y-2 max-h-[400px] overflow-y-auto pr-2 custom-scrollbar">
-                  {workspaces.map(ws => (
-                    <button 
-                      key={ws._id}
-                      onClick={() => setSelectedWorkspaceId(ws._id)}
-                      className={`w-full flex items-center justify-between p-4 rounded-2xl border transition-all cursor-pointer ${
-                        selectedWorkspaceId === ws._id 
-                        ? 'bg-accent text-white border-accent shadow-lg shadow-accent/20' 
-                        : 'bg-background border-border hover:border-accent/50 text-foreground'
-                      }`}
-                    >
-                      <div className="flex items-center gap-3">
-                        <span className="text-xl">{ws.emoji}</span>
-                        <span className="font-bold text-sm">{ws.name}</span>
+                  {workspaces.map(ws => {
+                    const WsIcon = WorkspaceIconMap[ws.emoji] || Layers; // Dynamic Icon Rendering
+                    return (
+                      <div key={ws._id} className="relative group">
+                        <button 
+                          onClick={() => setSelectedWorkspaceId(ws._id)}
+                          className={`w-full flex items-center justify-between p-4 rounded-2xl border transition-all cursor-pointer ${
+                            selectedWorkspaceId === ws._id 
+                            ? 'bg-accent text-white border-accent shadow-lg shadow-accent/20' 
+                            : 'bg-background border-border hover:border-accent/50 text-foreground'
+                          }`}
+                        >
+                          <div className="flex items-center gap-3">
+                            <WsIcon className="w-5 h-5" />
+                            <span className="font-bold text-sm">{ws.name}</span>
+                          </div>
+                          {selectedWorkspaceId === ws._id && <ChevronDown className="w-4 h-4 -rotate-90" />}
+                        </button>
+                        
+                        {/* DELETE BUTTON - Only shows if not default */}
+                        {!ws.isDefault && (
+                          <button 
+                            onClick={(e) => { e.stopPropagation(); setWorkspaceToDelete({ id: ws._id, name: ws.name }); }}
+                            className="absolute top-1/2 -right-10 -translate-y-1/2 p-2 bg-red-500/10 text-red-500 hover:bg-red-500 hover:text-white rounded-xl transition-all opacity-0 group-hover:opacity-100 group-hover:right-2"
+                          >
+                            <Trash2 className="w-4 h-4" />
+                          </button>
+                        )}
                       </div>
-                      {selectedWorkspaceId === ws._id && <ChevronDown className="w-4 h-4 -rotate-90" />}
-                    </button>
-                  ))}
+                    );
+                  })}
                 </div>
              </div>
 
@@ -698,8 +843,18 @@ export default function AdminDashboard() {
                     </div>
                   </div>
                   <div className="flex gap-2">
-                    <button onClick={() => resolveRoleRequest({ requestId: r._id, approved: false })} className="px-4 py-2 bg-red-500/10 text-red-600 rounded-lg text-xs font-bold uppercase hover:bg-red-500 hover:text-white transition-all">Reject</button>
-                    <button onClick={() => resolveRoleRequest({ requestId: r._id, approved: true })} className="px-4 py-2 bg-green-500/10 text-green-600 rounded-lg text-xs font-bold uppercase hover:bg-green-500 hover:text-white transition-all">Approve</button>
+                    <button 
+                      onClick={() => initiateDecision('role', r._id, 'reject', r.user?.name, r.role?.name)} 
+                      className="px-4 py-2 bg-red-500/10 text-red-600 rounded-lg text-xs font-bold uppercase hover:bg-red-500 hover:text-white transition-all"
+                    >
+                      Reject
+                    </button>
+                    <button 
+                      onClick={() => initiateDecision('role', r._id, 'approve', r.user?.name, r.role?.name)} 
+                      className="px-4 py-2 bg-green-500/10 text-green-600 rounded-lg text-xs font-bold uppercase hover:bg-green-500 hover:text-white transition-all"
+                    >
+                      Approve
+                    </button>
                   </div>
                 </div>
               ))
@@ -730,13 +885,24 @@ export default function AdminDashboard() {
                     </div>
                   </div>
                   <div className="flex gap-2">
-                    <button onClick={() => resolveWsRequest({ requestId: r._id, approved: false })} className="px-4 py-2 bg-red-500/10 text-red-600 rounded-lg text-xs font-bold uppercase hover:bg-red-500 hover:text-white transition-all">Reject</button>
-                    <button onClick={() => resolveWsRequest({ requestId: r._id, approved: true })} className="px-4 py-2 bg-green-500/10 text-green-600 rounded-lg text-xs font-bold uppercase hover:bg-green-500 hover:text-white transition-all">Approve</button>
+                    <button 
+                      onClick={() => initiateDecision('workspace', r._id, 'reject', r.user?.name, r.workspaceName)} 
+                      className="px-4 py-2 bg-red-500/10 text-red-600 rounded-lg text-xs font-bold uppercase hover:bg-red-500 hover:text-white transition-all"
+                    >
+                      Reject
+                    </button>
+                    <button 
+                      onClick={() => initiateDecision('workspace', r._id, 'approve', r.user?.name, r.workspaceName)} 
+                      className="px-4 py-2 bg-green-500/10 text-green-600 rounded-lg text-xs font-bold uppercase hover:bg-green-500 hover:text-white transition-all"
+                    >
+                      Approve
+                    </button>
                   </div>
                 </div>
               ))
             )}
           </section>
+
         </div>
       )}
     </div>

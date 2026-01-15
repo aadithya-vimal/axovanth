@@ -7,7 +7,8 @@ import { useParams } from "next/navigation";
 import { 
   Ticket, Plus, Hash, UploadCloud, File as FileIcon, Download, 
   Loader2, ArrowRightLeft, X, Send, AlertCircle, ChevronRight, 
-  User, RefreshCw, BarChart3, Check, Calendar, Flag, Clock, History, MessageSquare, AlertTriangle
+  User, RefreshCw, BarChart3, Check, Calendar, Flag, Clock, History, MessageSquare, AlertTriangle,
+  Layout, List, MessageCircle, Paperclip, Smile
 } from "lucide-react";
 import { useUser } from "@clerk/nextjs";
 
@@ -23,6 +24,7 @@ export default function WorkspacePage() {
   const workspaces = useQuery(api.workspaces.getByCompany, { companyId });
   const members = useQuery(api.workspaces.getMembers, { workspaceId });
   const myPermissions = useQuery(api.workspaces.getMyself, { workspaceId });
+  const chatMessages = useQuery(api.chat.getMessages, { companyId, workspaceId }); // Workspace Chat
   
   // Mutations
   const createTicket = useMutation(api.tickets.create);
@@ -35,10 +37,12 @@ export default function WorkspacePage() {
   const setDueDate = useMutation(api.tickets.setDueDate);
   const generateUploadUrl = useMutation(api.files.generateUploadUrl);
   const sendFile = useMutation(api.files.sendFile);
+  const sendChatMessage = useMutation(api.chat.send); // Chat Mutation
 
   // UI State
+  const [activeTab, setActiveTab] = useState<'overview' | 'board' | 'chat' | 'assets'>('overview');
   const [selectedTicketId, setSelectedTicketId] = useState<string | null>(null);
-  const [tab, setTab] = useState<'chat' | 'audit'>('chat');
+  const [drawerTab, setDrawerTab] = useState<'chat' | 'audit'>('chat');
   const [confirmAction, setConfirmAction] = useState<{type: 'resolve' | 'reopen' | 'transfer'} | null>(null);
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [isUploading, setIsUploading] = useState(false);
@@ -46,6 +50,10 @@ export default function WorkspacePage() {
   const [newTicket, setNewTicket] = useState({ title: "", description: "", priority: "medium" as const, type: "task" as const });
   const [isTransferring, setIsTransferring] = useState(false);
   const [targetWs, setTargetWs] = useState("");
+  
+  // Chat State
+  const [chatInput, setChatInput] = useState("");
+  const chatScrollRef = useRef<HTMLDivElement>(null);
 
   const scrollRef = useRef<HTMLDivElement>(null);
   const selectedTicket = tickets?.find((t: any) => t._id === selectedTicketId) || null;
@@ -81,9 +89,19 @@ export default function WorkspacePage() {
     try {
       await addComment({ ticketId: selectedTicket._id, content: commentText });
       setCommentText("");
-      if(tab === 'chat') setTimeout(() => scrollRef.current?.scrollIntoView({ behavior: "smooth" }), 100);
+      if(drawerTab === 'chat') setTimeout(() => scrollRef.current?.scrollIntoView({ behavior: "smooth" }), 100);
     } catch (e) { console.error(e); }
   };
+
+  const handleSendChat = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if(!chatInput.trim()) return;
+    try {
+        await sendChatMessage({ companyId, workspaceId, content: chatInput });
+        setChatInput("");
+        setTimeout(() => chatScrollRef.current?.scrollIntoView({ behavior: "smooth" }), 100);
+    } catch(e) { console.error(e); }
+  }
 
   const onFileUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
@@ -107,15 +125,203 @@ export default function WorkspacePage() {
   const openCount = tickets.filter(t => t.status === 'open').length;
   const resolvedCount = tickets.filter(t => t.status === 'resolved').length;
 
+  const KanbanColumn = ({ status, label }: { status: string, label: string }) => {
+    const columnTickets = tickets.filter(t => t.status === status);
+    return (
+      <div className="flex-1 min-w-[300px] flex flex-col gap-4">
+        <div className="flex items-center justify-between px-2">
+          <h3 className="text-xs font-bold uppercase tracking-wider text-muted flex items-center gap-2">
+            <span className={`w-2 h-2 rounded-full ${status === 'open' ? 'bg-blue-500' : status === 'resolved' ? 'bg-green-500' : 'bg-orange-500'}`} />
+            {label} ({columnTickets.length})
+          </h3>
+        </div>
+        <div className="flex-1 bg-foreground/[0.02] rounded-2xl p-2 space-y-3 min-h-[500px] border border-border/50">
+          {columnTickets.map(ticket => (
+            <div 
+              key={ticket._id}
+              onClick={() => setSelectedTicketId(ticket._id)}
+              className="p-4 rounded-xl bg-background border border-border hover:border-accent/50 cursor-pointer shadow-sm group transition-all"
+            >
+              <div className="flex justify-between items-start mb-2">
+                <span className={`px-2 py-0.5 rounded text-[10px] font-bold uppercase ${
+                  ticket.priority === 'high' ? 'bg-red-500/10 text-red-500' : 'bg-blue-500/10 text-blue-500'
+                }`}>
+                  {ticket.priority}
+                </span>
+              </div>
+              <h4 className="text-sm font-bold text-foreground mb-2 line-clamp-2">{ticket.title}</h4>
+              <div className="flex items-center justify-between mt-3 pt-3 border-t border-border/50">
+                <div className="w-5 h-5 rounded-full bg-foreground/10 flex items-center justify-center text-[9px] font-bold">
+                    {ticket.assignee?.name?.[0] || "?"}
+                </div>
+                <span className="text-[10px] text-muted">{new Date(ticket._creationTime).toLocaleDateString()}</span>
+              </div>
+            </div>
+          ))}
+        </div>
+      </div>
+    );
+  };
+
   return (
-    <div className="max-w-7xl mx-auto space-y-8 pb-32 animate-in fade-in duration-700 font-sans">
+    <div className="max-w-7xl mx-auto space-y-8 pb-32 animate-in fade-in duration-700 font-sans h-full">
       
-      {/* TICKET DRAWER */}
+      {/* HEADER */}
+      <header className="flex flex-col md:flex-row md:items-end justify-between border-b border-border pb-8 gap-6">
+        <div className="space-y-2">
+          <div className="flex items-center gap-2 text-accent font-bold text-[10px] uppercase tracking-wider mb-2">
+             <div className="w-2 h-2 rounded-full bg-accent animate-pulse" /> Active Node
+          </div>
+          <h1 className="text-4xl font-semibold tracking-tight text-foreground">Workspace Hub</h1>
+          <p className="text-muted text-lg font-normal">Manage departmental flows and assets.</p>
+        </div>
+        
+        <div className="flex items-center gap-4">
+            <div className="flex bg-foreground/5 p-1 rounded-xl">
+                <button onClick={() => setActiveTab('overview')} className={`px-4 py-2 rounded-lg text-xs font-bold uppercase tracking-wider transition-all ${activeTab === 'overview' ? 'bg-background shadow-sm text-foreground' : 'text-muted hover:text-foreground'}`}>Overview</button>
+                <button onClick={() => setActiveTab('board')} className={`px-4 py-2 rounded-lg text-xs font-bold uppercase tracking-wider transition-all ${activeTab === 'board' ? 'bg-background shadow-sm text-foreground' : 'text-muted hover:text-foreground'}`}>Board</button>
+                <button onClick={() => setActiveTab('chat')} className={`px-4 py-2 rounded-lg text-xs font-bold uppercase tracking-wider transition-all ${activeTab === 'chat' ? 'bg-background shadow-sm text-foreground' : 'text-muted hover:text-foreground'}`}>Chat</button>
+                <button onClick={() => setActiveTab('assets')} className={`px-4 py-2 rounded-lg text-xs font-bold uppercase tracking-wider transition-all ${activeTab === 'assets' ? 'bg-background shadow-sm text-foreground' : 'text-muted hover:text-foreground'}`}>Assets</button>
+            </div>
+            <button onClick={() => setIsModalOpen(true)} className="apple-button shadow-lg shadow-accent/20">
+            <Plus className="w-5 h-5" /> New Ticket
+            </button>
+        </div>
+      </header>
+
+      {/* OVERVIEW TAB */}
+      {activeTab === 'overview' && (
+        <div className="space-y-8 animate-in fade-in">
+            {/* MATRIX */}
+            <section className="grid grid-cols-3 gap-4">
+                <div className="glass-panel p-6 rounded-3xl flex items-center gap-4 border-border">
+                    <div className="w-12 h-12 bg-red-500/10 rounded-2xl flex items-center justify-center text-red-600"><AlertCircle className="w-6 h-6" /></div>
+                    <div><p className="text-2xl font-bold text-foreground">{highPriority}</p><p className="text-xs font-bold text-muted uppercase tracking-wider">Critical Load</p></div>
+                </div>
+                <div className="glass-panel p-6 rounded-3xl flex items-center gap-4 border-border">
+                    <div className="w-12 h-12 bg-blue-500/10 rounded-2xl flex items-center justify-center text-blue-600"><BarChart3 className="w-6 h-6" /></div>
+                    <div><p className="text-2xl font-bold text-foreground">{openCount}</p><p className="text-xs font-bold text-muted uppercase tracking-wider">Active Flows</p></div>
+                </div>
+                <div className="glass-panel p-6 rounded-3xl flex items-center gap-4 border-border">
+                    <div className="w-12 h-12 bg-green-500/10 rounded-2xl flex items-center justify-center text-green-600"><Check className="w-6 h-6" /></div>
+                    <div><p className="text-2xl font-bold text-foreground">{resolvedCount}</p><p className="text-xs font-bold text-muted uppercase tracking-wider">Resolved</p></div>
+                </div>
+            </section>
+
+            {/* LIST */}
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                {tickets.map((ticket) => (
+                <div 
+                    key={ticket._id} 
+                    onClick={() => setSelectedTicketId(ticket._id)}
+                    className="glass-panel p-6 rounded-3xl border border-border hover:border-accent/50 hover:bg-accent/[0.02] transition-all duration-300 cursor-pointer group shadow-sm hover:shadow-xl"
+                >
+                    <div className="flex items-center justify-between mb-6">
+                    <span className={`px-2.5 py-1 rounded-full text-[10px] font-bold uppercase tracking-wider border ${
+                        ticket.priority === "high" ? "bg-red-500/10 text-red-600 border-red-200 dark:border-red-900" : 
+                        ticket.priority === "medium" ? "bg-orange-500/10 text-orange-600 border-orange-200 dark:border-orange-900" :
+                        "bg-green-500/10 text-green-600 border-green-200 dark:border-green-900"
+                    }`}>
+                        {ticket.priority}
+                    </span>
+                    <div className="w-8 h-8 rounded-full bg-foreground/5 flex items-center justify-center text-muted group-hover:text-accent transition-colors">
+                        <ChevronRight className="w-4 h-4" />
+                    </div>
+                    </div>
+                    <h3 className="font-semibold text-lg text-foreground mb-2 truncate tracking-tight">{ticket.title}</h3>
+                    <p className="text-muted text-sm font-normal line-clamp-2 mb-6 leading-relaxed">{ticket.description}</p>
+                    <div className="flex items-center justify-between pt-4 border-t border-border">
+                    <div className="flex items-center gap-2 text-muted text-[10px] font-bold uppercase tracking-wider">
+                        <User className="w-3 h-3" /> {ticket.assignee ? ticket.assignee.name.split(' ')[0] : 'Unassigned'}
+                    </div>
+                    <span className={`text-[10px] font-bold uppercase tracking-wider ${
+                        ticket.status === 'resolved' ? 'text-green-600' : 'text-accent'
+                    }`}>
+                        {ticket.status}
+                    </span>
+                    </div>
+                </div>
+                ))}
+            </div>
+        </div>
+      )}
+
+      {/* BOARD TAB (Kanban) */}
+      {activeTab === 'board' && (
+        <div className="flex gap-6 overflow-x-auto pb-6 animate-in fade-in">
+            <KanbanColumn status="open" label="Backlog" />
+            <KanbanColumn status="in_progress" label="In Progress" />
+            <KanbanColumn status="resolved" label="Done" />
+        </div>
+      )}
+
+      {/* CHAT TAB */}
+      {activeTab === 'chat' && (
+        <div className="h-[600px] flex flex-col glass-panel rounded-[32px] overflow-hidden border border-border animate-in fade-in">
+            <div className="flex-1 overflow-y-auto p-6 space-y-4 flex flex-col-reverse bg-background/50">
+                <div ref={chatScrollRef} />
+                {chatMessages?.map((msg, idx) => {
+                    const isMe = msg.user?.clerkId === clerkUser?.id;
+                    return (
+                        <div key={msg._id} className={`flex gap-3 ${isMe ? "flex-row-reverse" : "flex-row"}`}>
+                            <div className="w-8 h-8 rounded-lg bg-foreground/5 flex items-center justify-center text-xs font-bold shrink-0">{msg.user?.name?.[0]}</div>
+                            <div className={`max-w-[70%] px-4 py-2 rounded-2xl text-sm font-medium ${isMe ? "bg-accent text-white" : "bg-white dark:bg-white/10"}`}>
+                                {msg.content}
+                            </div>
+                        </div>
+                    )
+                })}
+            </div>
+            <form onSubmit={handleSendChat} className="p-4 bg-background border-t border-border flex gap-2">
+                <input 
+                    className="flex-1 input-field" 
+                    placeholder="Message workspace..." 
+                    value={chatInput} 
+                    onChange={(e) => setChatInput(e.target.value)} 
+                />
+                <button type="submit" className="p-3 bg-accent text-white rounded-xl shadow-lg hover:scale-105 transition-transform"><Send className="w-4 h-4" /></button>
+            </form>
+        </div>
+      )}
+
+      {/* ASSETS TAB */}
+      {activeTab === 'assets' && (
+        <div className="space-y-8 animate-in fade-in">
+            <label className="relative glass-panel rounded-3xl border-2 border-dashed border-border p-8 flex flex-col items-center justify-center gap-4 cursor-pointer hover:border-accent hover:bg-accent/[0.02] transition-all group">
+            <input type="file" className="hidden" onChange={onFileUpload} disabled={isUploading} />
+            <div className="w-16 h-16 bg-background rounded-2xl flex items-center justify-center shadow-sm border border-border group-hover:scale-105 transition-transform">
+                {isUploading ? <Loader2 className="w-6 h-6 text-accent animate-spin" /> : <UploadCloud className="w-6 h-6 text-accent" />}
+            </div>
+            <div className="text-center">
+                <p className="text-sm font-semibold text-foreground">Upload Asset</p>
+                <p className="text-xs text-muted font-medium mt-1">Drag & drop or click to browse</p>
+            </div>
+            </label>
+
+            <div className="space-y-4">
+            {assets?.map((asset) => (
+                <div key={asset._id} className="flex items-center gap-4 p-4 glass-panel rounded-2xl border border-border hover:bg-foreground/5 transition-all group">
+                <div className="w-10 h-10 bg-accent/10 rounded-xl flex items-center justify-center border border-accent/20">
+                    <FileIcon className="w-5 h-5 text-accent" />
+                </div>
+                <div className="flex-1 min-w-0">
+                    <p className="text-sm font-semibold text-foreground truncate">{asset.fileName}</p>
+                    <p className="text-[10px] text-muted font-bold uppercase tracking-wider mt-0.5">{asset.fileType.split('/')[1]}</p>
+                </div>
+                <a href={asset.url || "#"} target="_blank" className="p-2 text-muted hover:text-accent transition-colors rounded-lg hover:bg-accent/10">
+                    <Download className="w-4 h-4" />
+                </a>
+                </div>
+            ))}
+            </div>
+        </div>
+      )}
+
+      {/* TICKET DRAWER & CONFIRM MODALS (Reused from original) */}
       {selectedTicket && (
         <div className="fixed inset-0 z-[150] flex items-center justify-end bg-black/40 backdrop-blur-md p-4 transition-all">
           <div className="glass-panel w-full max-w-4xl h-full rounded-[32px] shadow-2xl animate-in slide-in-from-right duration-500 overflow-hidden flex flex-col border-border bg-background">
             
-            {/* CONFIRMATION MODAL */}
             {confirmAction && (
               <div className="absolute inset-0 z-[200] bg-background/80 backdrop-blur-sm flex items-center justify-center p-4">
                 <div className="bg-background border border-border p-8 rounded-3xl shadow-2xl max-w-sm w-full animate-in zoom-in-95">
@@ -152,15 +358,13 @@ export default function WorkspacePage() {
 
             <div className="flex-1 flex overflow-hidden">
               <div className="flex-1 flex flex-col border-r border-border min-w-0">
-                
-                {/* TABS */}
                 <div className="flex items-center border-b border-border px-8">
-                  <button onClick={() => setTab('chat')} className={`py-4 text-xs font-bold uppercase tracking-wider border-b-2 px-4 transition-all ${tab === 'chat' ? 'border-accent text-foreground' : 'border-transparent text-muted'}`}>Discussion</button>
-                  <button onClick={() => setTab('audit')} className={`py-4 text-xs font-bold uppercase tracking-wider border-b-2 px-4 transition-all ${tab === 'audit' ? 'border-accent text-foreground' : 'border-transparent text-muted'}`}>Audit Log</button>
+                  <button onClick={() => setDrawerTab('chat')} className={`py-4 text-xs font-bold uppercase tracking-wider border-b-2 px-4 transition-all ${drawerTab === 'chat' ? 'border-accent text-foreground' : 'border-transparent text-muted'}`}>Discussion</button>
+                  <button onClick={() => setDrawerTab('audit')} className={`py-4 text-xs font-bold uppercase tracking-wider border-b-2 px-4 transition-all ${drawerTab === 'audit' ? 'border-accent text-foreground' : 'border-transparent text-muted'}`}>Audit Log</button>
                 </div>
 
                 <div className="flex-1 overflow-y-auto p-8 custom-scrollbar">
-                  {tab === 'chat' ? (
+                  {drawerTab === 'chat' ? (
                     <div className="space-y-6">
                       <div className="p-6 bg-foreground/[0.02] rounded-2xl border border-border">
                         <p className="text-foreground text-sm leading-relaxed whitespace-pre-wrap">{selectedTicket.description}</p>
@@ -195,7 +399,7 @@ export default function WorkspacePage() {
                   )}
                 </div>
 
-                {tab === 'chat' && (
+                {drawerTab === 'chat' && (
                   <form onSubmit={handleComment} className="p-4 border-t border-border bg-background/50 backdrop-blur-md">
                     <div className="flex gap-2">
                       <input placeholder="Transmit update..." className="input-field py-2.5 text-sm" value={commentText} onChange={(e) => setCommentText(e.target.value)} />
@@ -250,7 +454,7 @@ export default function WorkspacePage() {
                           </select>
                           <div className="flex gap-2">
                             <button onClick={() => setIsTransferring(false)} className="flex-1 py-1 bg-foreground/5 rounded-lg text-[10px] font-bold uppercase">Cancel</button>
-                            <button onClick={() => setConfirmAction({type: 'transfer'})} disabled={!targetWs} className="flex-1 py-1 bg-accent text-white rounded-lg text-[10px] font-bold uppercase">Confirm</button>
+                            <button onClick={() => setConfirmAction({type: 'transfer', targetId: targetWs})} disabled={!targetWs} className="flex-1 py-1 bg-accent text-white rounded-lg text-[10px] font-bold uppercase">Confirm</button>
                           </div>
                         </div>
                       )}
@@ -265,135 +469,6 @@ export default function WorkspacePage() {
         </div>
       )}
 
-      {/* HEADER & LIST (Existing Code) */}
-      <header className="flex flex-col md:flex-row md:items-end justify-between border-b border-border pb-8 gap-6">
-        <div className="space-y-2">
-          <div className="flex items-center gap-2 text-accent font-bold text-[10px] uppercase tracking-wider mb-2">
-             <div className="w-2 h-2 rounded-full bg-accent animate-pulse" /> Active Node
-          </div>
-          <h1 className="text-4xl font-semibold tracking-tight text-foreground">Workspace Hub</h1>
-          <p className="text-muted text-lg font-normal">Manage departmental flows and assets.</p>
-        </div>
-        <button onClick={() => setIsModalOpen(true)} className="apple-button shadow-lg shadow-accent/20">
-          <Plus className="w-5 h-5" /> New Ticket
-        </button>
-      </header>
-
-      {/* MATRIX */}
-      <section className="grid grid-cols-3 gap-4">
-         <div className="glass-panel p-6 rounded-3xl flex items-center gap-4 border-border">
-            <div className="w-12 h-12 bg-red-500/10 rounded-2xl flex items-center justify-center text-red-600">
-               <AlertCircle className="w-6 h-6" />
-            </div>
-            <div>
-               <p className="text-2xl font-bold text-foreground">{highPriority}</p>
-               <p className="text-xs font-bold text-muted uppercase tracking-wider">Critical Load</p>
-            </div>
-         </div>
-         <div className="glass-panel p-6 rounded-3xl flex items-center gap-4 border-border">
-            <div className="w-12 h-12 bg-blue-500/10 rounded-2xl flex items-center justify-center text-blue-600">
-               <BarChart3 className="w-6 h-6" />
-            </div>
-            <div>
-               <p className="text-2xl font-bold text-foreground">{openCount}</p>
-               <p className="text-xs font-bold text-muted uppercase tracking-wider">Active Flows</p>
-            </div>
-         </div>
-         <div className="glass-panel p-6 rounded-3xl flex items-center gap-4 border-border">
-            <div className="w-12 h-12 bg-green-500/10 rounded-2xl flex items-center justify-center text-green-600">
-               <Check className="w-6 h-6" />
-            </div>
-            <div>
-               <p className="text-2xl font-bold text-foreground">{resolvedCount}</p>
-               <p className="text-xs font-bold text-muted uppercase tracking-wider">Resolved</p>
-            </div>
-         </div>
-      </section>
-
-      <div className="grid lg:grid-cols-3 gap-12">
-        {/* ACTIVE FLOWS */}
-        <div className="lg:col-span-2 space-y-8">
-          <h2 className="flex items-center gap-3 text-xs font-bold uppercase tracking-wider text-muted">
-            <Ticket className="w-4 h-4 text-accent" /> Active Flows
-          </h2>
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-            {tickets.map((ticket) => (
-              <div 
-                key={ticket._id} 
-                onClick={() => setSelectedTicketId(ticket._id)}
-                className="glass-panel p-6 rounded-3xl border border-border hover:border-accent/50 hover:bg-accent/[0.02] transition-all duration-300 cursor-pointer group shadow-sm hover:shadow-xl"
-              >
-                <div className="flex items-center justify-between mb-6">
-                  <span className={`px-2.5 py-1 rounded-full text-[10px] font-bold uppercase tracking-wider border ${
-                    ticket.priority === "high" ? "bg-red-500/10 text-red-600 border-red-200 dark:border-red-900" : 
-                    ticket.priority === "medium" ? "bg-orange-500/10 text-orange-600 border-orange-200 dark:border-orange-900" :
-                    "bg-green-500/10 text-green-600 border-green-200 dark:border-green-900"
-                  }`}>
-                    {ticket.priority}
-                  </span>
-                  <div className="w-8 h-8 rounded-full bg-foreground/5 flex items-center justify-center text-muted group-hover:text-accent transition-colors">
-                    <ChevronRight className="w-4 h-4" />
-                  </div>
-                </div>
-                <h3 className="font-semibold text-lg text-foreground mb-2 truncate tracking-tight">{ticket.title}</h3>
-                <p className="text-muted text-sm font-normal line-clamp-2 mb-6 leading-relaxed">{ticket.description}</p>
-                <div className="flex items-center justify-between pt-4 border-t border-border">
-                  <div className="flex items-center gap-2 text-muted text-[10px] font-bold uppercase tracking-wider">
-                    <User className="w-3 h-3" /> {ticket.assignee ? ticket.assignee.name.split(' ')[0] : 'Unassigned'}
-                  </div>
-                  <span className={`text-[10px] font-bold uppercase tracking-wider ${
-                    ticket.status === 'resolved' ? 'text-green-600' : 'text-accent'
-                  }`}>
-                    {ticket.status}
-                  </span>
-                </div>
-              </div>
-            ))}
-            
-            {tickets.length === 0 && (
-              <div className="col-span-full py-12 text-center border-2 border-dashed border-border rounded-3xl">
-                 <p className="text-muted text-sm font-medium">No active tickets in this workspace.</p>
-              </div>
-            )}
-          </div>
-        </div>
-
-        {/* ASSET VAULT */}
-        <div className="space-y-8">
-          <h2 className="flex items-center gap-3 text-xs font-bold uppercase tracking-wider text-muted">
-            <UploadCloud className="w-4 h-4 text-accent" /> Asset Vault
-          </h2>
-          
-          <label className="relative glass-panel rounded-3xl border-2 border-dashed border-border p-8 flex flex-col items-center justify-center gap-4 cursor-pointer hover:border-accent hover:bg-accent/[0.02] transition-all group">
-            <input type="file" className="hidden" onChange={onFileUpload} disabled={isUploading} />
-            <div className="w-16 h-16 bg-background rounded-2xl flex items-center justify-center shadow-sm border border-border group-hover:scale-105 transition-transform">
-              {isUploading ? <Loader2 className="w-6 h-6 text-accent animate-spin" /> : <UploadCloud className="w-6 h-6 text-accent" />}
-            </div>
-            <div className="text-center">
-              <p className="text-sm font-semibold text-foreground">Upload Asset</p>
-              <p className="text-xs text-muted font-medium mt-1">Drag & drop or click to browse</p>
-            </div>
-          </label>
-
-          <div className="space-y-4">
-            {assets?.map((asset) => (
-              <div key={asset._id} className="flex items-center gap-4 p-4 glass-panel rounded-2xl border border-border hover:bg-foreground/5 transition-all group">
-                <div className="w-10 h-10 bg-accent/10 rounded-xl flex items-center justify-center border border-accent/20">
-                  <FileIcon className="w-5 h-5 text-accent" />
-                </div>
-                <div className="flex-1 min-w-0">
-                  <p className="text-sm font-semibold text-foreground truncate">{asset.fileName}</p>
-                  <p className="text-[10px] text-muted font-bold uppercase tracking-wider mt-0.5">{asset.fileType.split('/')[1]}</p>
-                </div>
-                <a href={asset.url || "#"} target="_blank" className="p-2 text-muted hover:text-accent transition-colors rounded-lg hover:bg-accent/10">
-                  <Download className="w-4 h-4" />
-                </a>
-              </div>
-            ))}
-          </div>
-        </div>
-      </div>
-
       {/* NEW FLOW MODAL */}
       {isModalOpen && (
         <div className="fixed inset-0 z-[200] flex items-center justify-center bg-black/60 backdrop-blur-xl p-4 animate-in fade-in duration-200">
@@ -401,74 +476,13 @@ export default function WorkspacePage() {
             <button onClick={() => setIsModalOpen(false)} className="absolute top-6 right-6 p-2 bg-foreground/5 rounded-full hover:bg-foreground/10 transition-colors">
                <X className="w-4 h-4 text-foreground" />
             </button>
-            
-            <div className="mb-8">
-              <h2 className="text-2xl font-bold text-foreground tracking-tight mb-2">Create Ticket</h2>
-              <p className="text-muted text-sm font-normal">Define the requirements for this operation.</p>
-            </div>
-            
+            <div className="mb-8"><h2 className="text-2xl font-bold text-foreground tracking-tight mb-2">Create Ticket</h2><p className="text-muted text-sm font-normal">Define the requirements for this operation.</p></div>
             <div className="space-y-6">
-              <div className="space-y-2">
-                <label className="text-xs font-bold text-muted uppercase tracking-wider ml-1">Title</label>
-                <input 
-                  placeholder="E.g. Update Security Protocol" 
-                  className="input-field" 
-                  value={newTicket.title} 
-                  onChange={(e) => setNewTicket({...newTicket, title: e.target.value})} 
-                  autoFocus
-                />
-              </div>
-              <div className="space-y-2">
-                <label className="text-xs font-bold text-muted uppercase tracking-wider ml-1">Type</label>
-                <div className="flex gap-2">
-                  {['task', 'bug', 'feature'].map((t) => (
-                    <button
-                      key={t}
-                      onClick={() => setNewTicket({...newTicket, type: t as any})}
-                      className={`flex-1 py-2 rounded-xl text-xs font-bold uppercase tracking-wider border transition-all ${
-                        newTicket.type === t 
-                          ? 'bg-accent text-white border-accent' 
-                          : 'bg-background text-muted border-border hover:border-accent/50'
-                      }`}
-                    >
-                      {t}
-                    </button>
-                  ))}
-                </div>
-              </div>
-              <div className="space-y-2">
-                <label className="text-xs font-bold text-muted uppercase tracking-wider ml-1">Description</label>
-                <textarea 
-                  placeholder="Detailed requirements..." 
-                  className="input-field h-32 resize-none leading-relaxed" 
-                  value={newTicket.description} 
-                  onChange={(e) => setNewTicket({...newTicket, description: e.target.value})} 
-                />
-              </div>
-              <div className="space-y-2">
-                <label className="text-xs font-bold text-muted uppercase tracking-wider ml-1">Priority Level</label>
-                <div className="flex gap-2">
-                  {['low', 'medium', 'high'].map((p) => (
-                    <button
-                      key={p}
-                      onClick={() => setNewTicket({...newTicket, priority: p as any})}
-                      className={`flex-1 py-2 rounded-xl text-xs font-bold uppercase tracking-wider border transition-all ${
-                        newTicket.priority === p 
-                          ? 'bg-accent text-white border-accent' 
-                          : 'bg-background text-muted border-border hover:border-accent/50'
-                      }`}
-                    >
-                      {p}
-                    </button>
-                  ))}
-                </div>
-              </div>
-              
-              <div className="pt-4">
-                <button onClick={handleTicketCreate} className="apple-button w-full shadow-lg shadow-accent/20">
-                  Create Ticket
-                </button>
-              </div>
+              <div className="space-y-2"><label className="text-xs font-bold text-muted uppercase tracking-wider ml-1">Title</label><input placeholder="E.g. Update Security Protocol" className="input-field" value={newTicket.title} onChange={(e) => setNewTicket({...newTicket, title: e.target.value})} autoFocus /></div>
+              <div className="space-y-2"><label className="text-xs font-bold text-muted uppercase tracking-wider ml-1">Type</label><div className="flex gap-2">{['task', 'bug', 'feature'].map((t) => (<button key={t} onClick={() => setNewTicket({...newTicket, type: t as any})} className={`flex-1 py-2 rounded-xl text-xs font-bold uppercase tracking-wider border transition-all ${newTicket.type === t ? 'bg-accent text-white border-accent' : 'bg-background text-muted border-border hover:border-accent/50'}`}>{t}</button>))}</div></div>
+              <div className="space-y-2"><label className="text-xs font-bold text-muted uppercase tracking-wider ml-1">Description</label><textarea placeholder="Detailed requirements..." className="input-field h-32 resize-none leading-relaxed" value={newTicket.description} onChange={(e) => setNewTicket({...newTicket, description: e.target.value})} /></div>
+              <div className="space-y-2"><label className="text-xs font-bold text-muted uppercase tracking-wider ml-1">Priority Level</label><div className="flex gap-2">{['low', 'medium', 'high'].map((p) => (<button key={p} onClick={() => setNewTicket({...newTicket, priority: p as any})} className={`flex-1 py-2 rounded-xl text-xs font-bold uppercase tracking-wider border transition-all ${newTicket.priority === p ? 'bg-accent text-white border-accent' : 'bg-background text-muted border-border hover:border-accent/50'}`}>{p}</button>))}</div></div>
+              <div className="pt-4"><button onClick={handleTicketCreate} className="apple-button w-full shadow-lg shadow-accent/20">Create Ticket</button></div>
             </div>
           </div>
         </div>

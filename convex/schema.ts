@@ -11,7 +11,7 @@ export default defineSchema({
 
   companies: defineTable({
     name: v.string(),
-    description: v.optional(v.string()), // NEW
+    description: v.optional(v.string()),
     adminId: v.id("users"),
     logoUrl: v.optional(v.string()),
     domain: v.optional(v.string()),
@@ -29,7 +29,7 @@ export default defineSchema({
     companyId: v.id("companies"),
     userId: v.id("users"),
     role: v.union(v.literal("admin"), v.literal("employee")), // System Role
-    roleId: v.optional(v.id("roles")), // NEW: Link to Custom Role
+    roleId: v.optional(v.id("roles")), // Link to Custom Role
     designation: v.optional(v.string()), // Legacy/Fallback
     status: v.union(v.literal("active"), v.literal("pending")),
   })
@@ -59,7 +59,8 @@ export default defineSchema({
     designation: v.optional(v.string()),
   })
   .index("by_workspace_and_user", ["workspaceId", "userId"])
-  .index("by_user", ["userId"]),
+  .index("by_user", ["userId"])
+  .index("by_workspace", ["workspaceId"]), // Added explicit index for deletion
 
   // Requests to join locked workspaces
   workspaceRequests: defineTable({
@@ -104,8 +105,11 @@ export default defineSchema({
 
   messages: defineTable({
     companyId: v.id("companies"),
+    workspaceId: v.optional(v.id("workspaces")), // Updated to support Workspace Chat
     authorId: v.id("users"),
     content: v.string(),
     attachmentId: v.optional(v.id("_storage")),
-  }).index("by_company", ["companyId"]),
+  })
+  .index("by_company", ["companyId"])
+  .index("by_workspace", ["workspaceId"]), // New Index for fast workspace lookups
 });

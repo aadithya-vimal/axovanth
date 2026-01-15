@@ -204,23 +204,22 @@ export const create = mutation({
     }
 
     const n = args.name.toLowerCase();
-    let emoji = "📂"; // Default
+    let emoji = "Box"; 
 
-    // INTELLIGENT EMOJI MAPPING
     const map = [
-      { keys: ["tech", "dev", "code", "stack", "engineer", "infra", "sys", "compute"], icon: "💻" },
-      { keys: ["market", "growth", "seo", "ad", "brand", "content", "social"], icon: "📈" },
-      { keys: ["sales", "rev", "money", "finance", "bill", "account", "tax"], icon: "💰" },
-      { keys: ["design", "art", "ui", "ux", "creative", "studio"], icon: "🎨" },
-      { keys: ["legal", "law", "policy", "compliance", "audit"], icon: "⚖️" },
-      { keys: ["hr", "human", "people", "recruit", "talent", "culture"], icon: "👥" },
-      { keys: ["ops", "operation", "logist", "supply", "admin"], icon: "⚙️" },
-      { keys: ["support", "help", "customer", "service", "care"], icon: "🎧" },
-      { keys: ["product", "roadmap", "feature", "spec"], icon: "🚀" },
-      { keys: ["data", "analytic", "science", "bi", "insight"], icon: "📊" },
-      { keys: ["exec", "ceo", "board", "strategy"], icon: "👔" },
-      { keys: ["qa", "test", "quality"], icon: "🧪" },
-      { keys: ["security", "sec", "cyber", "guard"], icon: "🛡️" },
+      { keys: ["tech", "dev", "code", "stack", "engineer", "sys", "compute"], icon: "Terminal" },
+      { keys: ["market", "growth", "seo", "ad", "brand", "content", "social"], icon: "TrendingUp" },
+      { keys: ["sales", "rev", "money", "finance", "bill", "account", "tax"], icon: "BadgeDollarSign" },
+      { keys: ["design", "art", "ui", "ux", "creative", "studio"], icon: "Palette" },
+      { keys: ["legal", "law", "policy", "compliance", "audit"], icon: "Scale" },
+      { keys: ["hr", "human", "people", "recruit", "talent", "culture"], icon: "Users" },
+      { keys: ["ops", "operation", "logist", "supply", "admin"], icon: "Settings2" },
+      { keys: ["support", "help", "customer", "service", "care"], icon: "LifeBuoy" },
+      { keys: ["product", "roadmap", "feature", "spec"], icon: "Rocket" },
+      { keys: ["data", "analytic", "science", "bi", "insight"], icon: "Database" },
+      { keys: ["exec", "ceo", "board", "strategy"], icon: "Briefcase" },
+      { keys: ["qa", "test", "quality", "bug"], icon: "Bug" },
+      { keys: ["security", "sec", "cyber", "guard"], icon: "ShieldCheck" },
     ];
 
     for (const entry of map) {
@@ -233,7 +232,7 @@ export const create = mutation({
     const workspaceId = await ctx.db.insert("workspaces", {
       companyId: args.companyId,
       name: args.name,
-      emoji: emoji,
+      emoji: emoji, 
       workspaceHeadId: user._id,
       isDefault: false,
     });
@@ -298,4 +297,50 @@ export const removeMember = mutation({
   handler: async (ctx, args) => {
     await ctx.db.delete(args.memberId);
   },
+});
+
+export const deleteWorkspace = mutation({
+  args: { workspaceId: v.id("workspaces") },
+  handler: async (ctx, args) => {
+    const identity = await ctx.auth.getUserIdentity();
+    if (!identity) throw new Error("Unauthorized");
+
+    const user = await ctx.db
+      .query("users")
+      .withIndex("by_clerkId", (q) => q.eq("clerkId", identity.subject))
+      .unique();
+
+    if (!user) throw new Error("User not found");
+
+    const workspace = await ctx.db.get(args.workspaceId);
+    if (!workspace) throw new Error("Workspace not found");
+
+    const companyMember = await ctx.db
+      .query("companyMembers")
+      .withIndex("by_company_and_user", (q) => q.eq("companyId", workspace.companyId).eq("userId", user._id))
+      .unique();
+
+    if (companyMember?.role !== "admin") {
+      throw new Error("Insufficient privileges to delete environment.");
+    }
+
+    // 1. Delete Workspace
+    await ctx.db.delete(args.workspaceId);
+    
+    // 2. Cascade Delete Members
+    const members = await ctx.db.query("workspaceMembers").withIndex("by_workspace", q => q.eq("workspaceId", args.workspaceId)).collect();
+    for (const m of members) await ctx.db.delete(m._id);
+
+    // 3. Cascade Delete Requests
+    const requests = await ctx.db.query("workspaceRequests").withIndex("by_workspace", q => q.eq("workspaceId", args.workspaceId)).collect();
+    for (const r of requests) await ctx.db.delete(r._id);
+
+    // 4. Cascade Delete Tickets
+    const tickets = await ctx.db.query("tickets").withIndex("by_workspace", q => q.eq("workspaceId", args.workspaceId)).collect();
+    for (const t of tickets) await ctx.db.delete(t._id);
+
+    // 5. Cascade Delete Messages (Chat)
+    const messages = await ctx.db.query("messages").withIndex("by_workspace", q => q.eq("workspaceId", args.workspaceId)).collect();
+    for (const m of messages) await ctx.db.delete(m._id);
+  }
 });
