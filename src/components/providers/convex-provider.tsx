@@ -11,7 +11,8 @@ const convex = new ConvexReactClient(process.env.NEXT_PUBLIC_CONVEX_URL!);
 export const ConvexClientProvider = ({ children }: { children: ReactNode }) => {
   return (
     <ClerkProvider publishableKey={process.env.NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY!}>
-      <ThemeProvider attribute="data-theme" defaultTheme="system" enableSystem>
+      {/* FIX: Changed attribute from "data-theme" to "class" to match Tailwind */}
+      <ThemeProvider attribute="class" defaultTheme="system" enableSystem>
         <ConvexProviderWithClerk client={convex} useAuth={useAuth}>
           {children}
         </ConvexProviderWithClerk>

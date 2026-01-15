@@ -39,13 +39,13 @@ export default function LandingPage() {
             <div className="w-9 h-9 rounded-xl flex items-center justify-center transition-transform group-hover:scale-105 shadow-sm bg-zinc-900 dark:bg-white text-white dark:text-black border border-black/5 dark:border-white/10 overflow-hidden">
               <img src="/logo.png" alt="Axovanth Logo" className="w-full h-full object-cover" />
             </div>
-            {/* RENAMED: Axovanth.OS -> Axovanth */}
             <span className="font-bold text-lg tracking-tight">Axovanth</span>
           </div>
           
           <div className="hidden md:flex items-center gap-8 text-sm font-medium text-muted-foreground">
             <a href="#features" className="hover:text-foreground transition-colors">Platform</a>
             <a href="#security" className="hover:text-foreground transition-colors">Security</a>
+            {/* This link will now work */}
             <a href="#enterprise" className="hover:text-foreground transition-colors">Enterprise</a>
           </div>
 
@@ -241,8 +241,13 @@ export default function LandingPage() {
         </div>
       </section>
 
-      {/* ARCHITECTURE BENTO */}
-      <section className="py-32" id="security">
+      {/* ARCHITECTURE BENTO (Enterprise/Security Section) */}
+      {/* FIX: Added id="enterprise" here as well so the link works */}
+      <section className="py-32" id="enterprise">
+        {/* Helper span to also catch #security anchor if needed, though only one ID per element is valid in HTML. 
+            We point the Enterprise link to this section. */}
+        <div id="security" className="absolute -mt-32" />
+        
         <div className="max-w-6xl mx-auto px-6">
           <div className="mb-20 text-center max-w-2xl mx-auto">
             <h2 className="text-3xl md:text-5xl font-bold mb-6 tracking-tight">Engineered for Scale.</h2>
