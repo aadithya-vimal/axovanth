@@ -26,6 +26,8 @@ async function validateAccess(ctx: any, companyId: any, workspaceId?: any) {
       .withIndex("by_workspace_and_user", (q: any) => q.eq("workspaceId", workspaceId).eq("userId", user._id))
       .unique();
     isWorkspaceAdmin = wsMember?.role === "admin";
+    
+    // Check if user is Workspace Head (implicit admin)
     const workspace = await ctx.db.get(workspaceId);
     if (workspace?.workspaceHeadId === user._id) isWorkspaceAdmin = true;
   }
@@ -58,6 +60,32 @@ export const create = mutation({
       metadata: "Flow initialized",
     });
     return ticketId;
+  },
+});
+
+// NEW: Generic status update for board movement
+export const updateStatus = mutation({
+  args: { 
+    ticketId: v.id("tickets"), 
+    status: v.union(v.literal("open"), v.literal("in_progress"), v.literal("resolved")) 
+  },
+  handler: async (ctx, args) => {
+    const ticket = await ctx.db.get(args.ticketId);
+    if (!ticket) throw new Error("Invalid Ticket");
+    
+    const { hasAdminRights, user } = await validateAccess(ctx, ticket.companyId, ticket.workspaceId);
+    if (!hasAdminRights) throw new Error("Security Violation: Only Admins can move tickets.");
+
+    if (ticket.status !== args.status) {
+        await ctx.db.patch(args.ticketId, { status: args.status });
+
+        await ctx.db.insert("ticketEvents", {
+            ticketId: args.ticketId,
+            actorId: user._id,
+            type: "status_change",
+            metadata: `Moved to ${args.status.replace('_', ' ')}`,
+        });
+    }
   },
 });
 
@@ -230,7 +258,6 @@ export const getComments = query({
   },
 });
 
-// NEW: Fetches the audit log for a ticket
 export const getEvents = query({
   args: { ticketId: v.id("tickets") },
   handler: async (ctx, args) => {
@@ -254,7 +281,6 @@ export const getByWorkspace = query({
   },
 });
 
-// NEW: Fetches ALL tickets for the company (for the global Operational Workflow)
 export const getAll = query({
   args: { companyId: v.id("companies") },
   handler: async (ctx, args) => {

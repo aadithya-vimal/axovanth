@@ -73,7 +73,8 @@ export default defineSchema({
     assigneeId: v.optional(v.id("users")),
     title: v.string(),
     description: v.string(),
-    status: v.union(v.literal("open"), v.literal("resolved"), v.literal("transferred")),
+    // UPDATED: Added 'in_progress'
+    status: v.union(v.literal("open"), v.literal("in_progress"), v.literal("resolved"), v.literal("transferred")),
     priority: v.union(v.literal("low"), v.literal("medium"), v.literal("high")),
     type: v.optional(v.union(v.literal("bug"), v.literal("feature"), v.literal("task"))),
     dueDate: v.optional(v.number()),
@@ -130,12 +131,11 @@ export default defineSchema({
   .index("by_workspace", ["workspaceId"])
   .index("by_company", ["companyId"]),
 
-  // NEW: Audit Log for Assets (Tracks Uploads & Deletions)
   assetEvents: defineTable({
     companyId: v.id("companies"),
     actorId: v.id("users"),
     type: v.union(v.literal("upload"), v.literal("delete")),
-    description: v.string(), // e.g. "Uploaded contract.pdf", "Deleted image.png"
+    description: v.string(),
     metadata: v.optional(v.string()),
   }).index("by_company", ["companyId"]),
 

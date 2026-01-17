@@ -34,6 +34,7 @@ export default function WorkspacePage() {
   const reopenTicket = useMutation(api.tickets.reopen);
   const addComment = useMutation(api.tickets.addComment);
   const updatePriority = useMutation(api.tickets.updatePriority);
+  const updateTicketStatus = useMutation(api.tickets.updateStatus); // NEW
   const assignTicket = useMutation(api.tickets.assign);
   const setDueDate = useMutation(api.tickets.setDueDate);
   const generateUploadUrl = useMutation(api.files.generateUploadUrl);
@@ -155,6 +156,22 @@ export default function WorkspacePage() {
     }
   };
 
+  // NEW: Move Ticket Function
+  const moveTicket = (ticketId: any, currentStatus: string, direction: 'next' | 'prev') => {
+    // Mapping DB status to Board Columns:
+    // "open" -> Backlog
+    // "in_progress" -> In Progress
+    // "resolved" -> Done
+    const statuses = ['open', 'in_progress', 'resolved'];
+    const idx = statuses.indexOf(currentStatus);
+    if (idx === -1) return;
+    
+    const newIdx = direction === 'next' ? idx + 1 : idx - 1;
+    if (newIdx >= 0 && newIdx < statuses.length) {
+        updateTicketStatus({ ticketId, status: statuses[newIdx] as any });
+    }
+  };
+
   const handleSendChat = async (e: React.FormEvent) => {
     e.preventDefault();
     if(!chatInput.trim()) return;
@@ -220,10 +237,26 @@ export default function WorkspacePage() {
               </div>
               <h4 className="text-sm font-bold text-foreground mb-2 line-clamp-2">{ticket.title}</h4>
               <div className="flex items-center justify-between mt-3 pt-3 border-t border-border/50">
+                {/* NEW: Admin Move Arrows */}
+                {hasAdminRights ? (
+                    <button onClick={(e) => { e.stopPropagation(); moveTicket(ticket._id, ticket.status, 'prev'); }} disabled={ticket.status === 'open'} className="p-1.5 rounded hover:bg-foreground/5 disabled:opacity-30 disabled:cursor-not-allowed">
+                        <ChevronLeft className="w-4 h-4 text-muted" />
+                    </button>
+                ) : (
+                    <div /> // Spacer
+                )}
+
                 <div className="w-5 h-5 rounded-full bg-foreground/10 flex items-center justify-center text-[9px] font-bold">
                     {ticket.assignee?.name?.[0] || "?"}
                 </div>
-                <span className="text-[10px] text-muted">{new Date(ticket._creationTime).toLocaleDateString()}</span>
+
+                {hasAdminRights ? (
+                    <button onClick={(e) => { e.stopPropagation(); moveTicket(ticket._id, ticket.status, 'next'); }} disabled={ticket.status === 'resolved'} className="p-1.5 rounded hover:bg-foreground/5 disabled:opacity-30 disabled:cursor-not-allowed">
+                        <ChevronRight className="w-4 h-4 text-muted" />
+                    </button>
+                ) : (
+                    <div />
+                )}
               </div>
             </div>
           ))}
