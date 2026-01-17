@@ -60,8 +60,14 @@ export const updateDetails = mutation({
     const identity = await ctx.auth.getUserIdentity();
     if (!identity) throw new Error("Unauthorized");
     const user = await ctx.db.query("users").withIndex("by_clerkId", q => q.eq("clerkId", identity.subject)).unique();
-    const company = await ctx.db.get(args.companyId);
-    if (!company || company.adminId !== user?._id) throw new Error("Only the owner can edit company details");
+    if (!user) throw new Error("User not found");
+
+    // FIX: Check for Admin Role in companyMembers instead of strict AdminId ownership
+    const member = await ctx.db.query("companyMembers")
+      .withIndex("by_company_and_user", q => q.eq("companyId", args.companyId).eq("userId", user._id))
+      .unique();
+
+    if (member?.role !== "admin") throw new Error("Insufficient privileges: Only admins can edit company details");
 
     await ctx.db.patch(args.companyId, {
       name: args.name,
@@ -80,12 +86,20 @@ export const transferOwnership = mutation({
     const identity = await ctx.auth.getUserIdentity();
     if (!identity) throw new Error("Unauthorized");
     const user = await ctx.db.query("users").withIndex("by_clerkId", q => q.eq("clerkId", identity.subject)).unique();
-    const company = await ctx.db.get(args.companyId);
-    if (!company || company.adminId !== user?._id) throw new Error("Only the owner can transfer ownership");
+    if (!user) throw new Error("User not found");
+
+    // FIX: Allow any Admin to transfer ownership
+    const member = await ctx.db.query("companyMembers")
+      .withIndex("by_company_and_user", q => q.eq("companyId", args.companyId).eq("userId", user._id))
+      .unique();
+
+    if (member?.role !== "admin") throw new Error("Insufficient privileges: Only admins can transfer ownership");
 
     await ctx.db.patch(args.companyId, { adminId: args.newOwnerId });
-    const member = await ctx.db.query("companyMembers").withIndex("by_company_and_user", q => q.eq("companyId", args.companyId).eq("userId", args.newOwnerId)).unique();
-    if (member) await ctx.db.patch(member._id, { role: "admin" });
+    
+    // Ensure new owner is an admin
+    const targetMember = await ctx.db.query("companyMembers").withIndex("by_company_and_user", q => q.eq("companyId", args.companyId).eq("userId", args.newOwnerId)).unique();
+    if (targetMember) await ctx.db.patch(targetMember._id, { role: "admin" });
   }
 });
 
@@ -95,8 +109,14 @@ export const deleteCompany = mutation({
     const identity = await ctx.auth.getUserIdentity();
     if (!identity) throw new Error("Unauthorized");
     const user = await ctx.db.query("users").withIndex("by_clerkId", q => q.eq("clerkId", identity.subject)).unique();
-    const company = await ctx.db.get(args.companyId);
-    if (!company || company.adminId !== user?._id) throw new Error("Only the owner can delete the company");
+    if (!user) throw new Error("User not found");
+
+    // FIX: Check for Admin Role
+    const member = await ctx.db.query("companyMembers")
+      .withIndex("by_company_and_user", q => q.eq("companyId", args.companyId).eq("userId", user._id))
+      .unique();
+
+    if (member?.role !== "admin") throw new Error("Insufficient privileges: Only admins can delete the company");
 
     await ctx.db.delete(args.companyId);
   }
