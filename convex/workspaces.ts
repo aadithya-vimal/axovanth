@@ -19,10 +19,26 @@ export const getMyMemberships = query({
     const user = await ctx.db.query("users").withIndex("by_clerkId", q => q.eq("clerkId", identity.subject)).unique();
     if (!user) return [];
 
+    // 1. Check if the user is an Organization Admin
+    const companyMember = await ctx.db.query("companyMembers")
+      .withIndex("by_company_and_user", q => q.eq("companyId", args.companyId).eq("userId", user._id))
+      .unique();
+
+    // 2. SUPER ADMIN BYPASS: If admin, return ALL workspace IDs immediately.
+    // This fixes the bug where admins saw locks, and ensures "reverse" logic works (demotion = loss of access).
+    if (companyMember?.role === "admin") {
+      const allWorkspaces = await ctx.db.query("workspaces")
+        .withIndex("by_company", q => q.eq("companyId", args.companyId))
+        .collect();
+      return allWorkspaces.map(ws => ws._id);
+    }
+
+    // 3. Standard Employee Logic: Return only explicit memberships
     const memberships = await ctx.db.query("workspaceMembers").withIndex("by_user", q => q.eq("userId", user._id)).collect();
     const myWorkspaceIds = [];
     for (const m of memberships) {
       const ws = await ctx.db.get(m.workspaceId);
+      // Ensure the workspace belongs to the current company context
       if (ws && ws.companyId === args.companyId) {
         myWorkspaceIds.push(m.workspaceId);
       }
@@ -38,6 +54,15 @@ export const requestAccess = mutation({
     if (!identity) throw new Error("Unauthorized");
     const user = await ctx.db.query("users").withIndex("by_clerkId", q => q.eq("clerkId", identity.subject)).unique();
     if (!user) throw new Error("User not found");
+
+    // Optional: Auto-deny if they are already admin (frontend should hide button, but safety check)
+    const ws = await ctx.db.get(args.workspaceId);
+    if (ws) {
+        const companyMember = await ctx.db.query("companyMembers")
+            .withIndex("by_company_and_user", q => q.eq("companyId", ws.companyId).eq("userId", user._id))
+            .unique();
+        if (companyMember?.role === "admin") throw new Error("Admins already have access.");
+    }
 
     const existing = await ctx.db.query("workspaceRequests")
       .withIndex("by_workspace", q => q.eq("workspaceId", args.workspaceId))
