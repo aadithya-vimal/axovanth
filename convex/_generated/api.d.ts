@@ -11,6 +11,7 @@
 import type * as chat from "../chat.js";
 import type * as companies from "../companies.js";
 import type * as files from "../files.js";
+import type * as kanban from "../kanban.js";
 import type * as roles from "../roles.js";
 import type * as tickets from "../tickets.js";
 import type * as users from "../users.js";
@@ -26,6 +27,7 @@ declare const fullApi: ApiFromModules<{
   chat: typeof chat;
   companies: typeof companies;
   files: typeof files;
+  kanban: typeof kanban;
   roles: typeof roles;
   tickets: typeof tickets;
   users: typeof users;

@@ -320,9 +320,17 @@ export default function SystemConfig() {
                 <h3 className="font-bold text-foreground text-sm">Transfer Ownership</h3>
                 <p className="text-xs text-muted">Transfer root admin privileges to another user. This action is irreversible.</p>
                 <div className="flex flex-col sm:flex-row gap-2">
-                  <select className="input-field text-xs" value={transferId} onChange={(e) => setTransferId(e.target.value)}>
-                    <option value="">Select New Owner...</option>
-                    {members?.map(m => <option key={m.userId} value={m.userId}>{m.user?.name}</option>)}
+                  <select 
+                    className="input-field text-xs bg-background text-foreground" 
+                    value={transferId} 
+                    onChange={(e) => setTransferId(e.target.value)}
+                  >
+                    <option value="" className="bg-background text-foreground">Select New Owner...</option>
+                    {members?.map(m => (
+                        <option key={m.userId} value={m.userId} className="bg-background text-foreground">
+                            {m.user?.name}
+                        </option>
+                    ))}
                   </select>
                   {/* FIX: Connected the onClick handler to the button */}
                   <button 

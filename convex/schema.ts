@@ -17,26 +17,24 @@ export default defineSchema({
     domain: v.optional(v.string()),
   }),
 
-  // Custom Roles defined by Admins
   roles: defineTable({
     companyId: v.id("companies"),
     name: v.string(),
-    color: v.string(), // e.g., "blue", "red"
+    color: v.string(), 
     description: v.optional(v.string()),
   }).index("by_company", ["companyId"]),
 
   companyMembers: defineTable({
     companyId: v.id("companies"),
     userId: v.id("users"),
-    role: v.union(v.literal("admin"), v.literal("employee")), // System Role
-    roleId: v.optional(v.id("roles")), // Link to Custom Role
-    designation: v.optional(v.string()), // Legacy/Fallback
+    role: v.union(v.literal("admin"), v.literal("employee")), 
+    roleId: v.optional(v.id("roles")), 
+    designation: v.optional(v.string()), 
     status: v.union(v.literal("active"), v.literal("pending")),
   })
   .index("by_company_and_user", ["companyId", "userId"])
   .index("by_user", ["userId"]),
 
-  // Requests for Custom Roles
   roleRequests: defineTable({
     companyId: v.id("companies"),
     userId: v.id("users"),
@@ -60,9 +58,8 @@ export default defineSchema({
   })
   .index("by_workspace_and_user", ["workspaceId", "userId"])
   .index("by_user", ["userId"])
-  .index("by_workspace", ["workspaceId"]), // Added explicit index for deletion
+  .index("by_workspace", ["workspaceId"]),
 
-  // Requests to join locked workspaces
   workspaceRequests: defineTable({
     workspaceId: v.id("workspaces"),
     userId: v.id("users"),
@@ -95,6 +92,35 @@ export default defineSchema({
     content: v.string(),
   }).index("by_ticket", ["ticketId"]),
 
+  kanbanTasks: defineTable({
+    companyId: v.id("companies"),
+    workspaceId: v.id("workspaces"),
+    creatorId: v.id("users"),
+    title: v.string(),
+    description: v.optional(v.string()), 
+    status: v.union(v.literal("backlog"), v.literal("todo"), v.literal("in_progress"), v.literal("done")),
+    priority: v.union(v.literal("low"), v.literal("medium"), v.literal("high")),
+    assigneeId: v.optional(v.id("users")),
+    dueDate: v.optional(v.number()), 
+  })
+  .index("by_company", ["companyId"])
+  .index("by_workspace", ["workspaceId"]),
+
+  // NEW: Audit Log for Kanban
+  kanbanEvents: defineTable({
+    taskId: v.id("kanbanTasks"),
+    actorId: v.id("users"),
+    type: v.string(), // 'created', 'status_change', 'update', 'comment'
+    metadata: v.optional(v.string()), // "Changed priority to High"
+  }).index("by_task", ["taskId"]),
+
+  // NEW: Chat/Comments for Kanban
+  kanbanComments: defineTable({
+    taskId: v.id("kanbanTasks"),
+    authorId: v.id("users"),
+    content: v.string(),
+  }).index("by_task", ["taskId"]),
+
   assets: defineTable({
     workspaceId: v.id("workspaces"),
     storageId: v.string(),
@@ -105,11 +131,11 @@ export default defineSchema({
 
   messages: defineTable({
     companyId: v.id("companies"),
-    workspaceId: v.optional(v.id("workspaces")), // Updated to support Workspace Chat
+    workspaceId: v.optional(v.id("workspaces")), 
     authorId: v.id("users"),
     content: v.string(),
     attachmentId: v.optional(v.id("_storage")),
   })
   .index("by_company", ["companyId"])
-  .index("by_workspace", ["workspaceId"]), // New Index for fast workspace lookups
+  .index("by_workspace", ["workspaceId"]), 
 });
