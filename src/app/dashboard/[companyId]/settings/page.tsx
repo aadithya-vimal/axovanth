@@ -23,6 +23,7 @@ export default function SystemConfig() {
   // Mutations
   const updateDetails = useMutation(api.companies.updateDetails);
   const deleteCompany = useMutation(api.companies.deleteCompany);
+  const transferOwnership = useMutation(api.companies.transferOwnership); // FIX: Added missing mutation
   const requestRole = useMutation(api.roles.requestRole);
   const updateUserName = useMutation(api.users.updateName);
   
@@ -51,8 +52,29 @@ export default function SystemConfig() {
 
   const handleDelete = async () => {
     if (confirm("CRITICAL: This will destroy the entire organization. Are you sure?")) {
-      await deleteCompany({ companyId });
-      router.push("/");
+      try {
+        await deleteCompany({ companyId });
+        router.push("/");
+      } catch (e: any) {
+        alert("Delete failed: " + e.message);
+      }
+    }
+  };
+
+  // FIX: Added handler for ownership transfer
+  const handleTransfer = async () => {
+    if (!transferId) return;
+    if (!confirm("Are you sure you want to transfer ownership? You will lose root privileges immediately.")) return;
+
+    try {
+      await transferOwnership({ 
+        companyId, 
+        newOwnerId: transferId as Id<"users"> 
+      });
+      alert("Ownership transferred successfully.");
+      router.push("/"); // Redirect to home as permissions might have changed
+    } catch (e: any) {
+      alert("Transfer failed: " + e.message);
     }
   };
 
@@ -66,7 +88,7 @@ export default function SystemConfig() {
       await requestRole({ companyId, roleId: roleRequestModal.roleId });
       setRoleRequestModal({ isOpen: false, roleId: null, roleName: "" });
     } catch (e: any) {
-      alert(e.message); // Fallback for actual errors
+      alert(e.message); 
     }
   };
 
@@ -302,9 +324,11 @@ export default function SystemConfig() {
                     <option value="">Select New Owner...</option>
                     {members?.map(m => <option key={m.userId} value={m.userId}>{m.user?.name}</option>)}
                   </select>
+                  {/* FIX: Connected the onClick handler to the button */}
                   <button 
+                    onClick={handleTransfer}
                     disabled={!transferId} 
-                    className="px-6 py-2.5 bg-zinc-900 hover:bg-zinc-800 text-white dark:bg-white dark:text-black dark:hover:bg-zinc-200 font-bold text-xs rounded-xl uppercase disabled:opacity-50 transition-all shadow-sm"
+                    className="px-6 py-2.5 bg-zinc-900 hover:bg-zinc-800 text-white dark:bg-white dark:text-black dark:hover:bg-zinc-200 font-bold text-xs rounded-xl uppercase disabled:opacity-50 transition-all shadow-sm cursor-pointer"
                   >
                     Transfer
                   </button>
