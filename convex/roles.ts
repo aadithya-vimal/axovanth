@@ -15,13 +15,42 @@ export const createRole = mutation({
     if (!identity) throw new Error("Unauthorized");
     
     const user = await ctx.db.query("users").withIndex("by_clerkId", q => q.eq("clerkId", identity.subject)).unique();
-    if (!user) throw new Error("User not found"); // FIX: Ensure user exists
+    if (!user) throw new Error("User not found"); 
 
     const member = await ctx.db.query("companyMembers").withIndex("by_company_and_user", q => q.eq("companyId", args.companyId).eq("userId", user._id)).unique();
     if (member?.role !== "admin") throw new Error("Only admins can create roles");
 
     await ctx.db.insert("roles", {
       companyId: args.companyId,
+      name: args.name,
+      color: args.color,
+      description: args.description
+    });
+  }
+});
+
+// NEW: Update Role details
+export const updateRole = mutation({
+  args: { 
+    roleId: v.id("roles"), 
+    name: v.string(), 
+    color: v.string(), 
+    description: v.string() 
+  },
+  handler: async (ctx, args) => {
+    const role = await ctx.db.get(args.roleId);
+    if (!role) throw new Error("Role not found");
+    
+    // Check permissions
+    const identity = await ctx.auth.getUserIdentity();
+    if (!identity) throw new Error("Unauthorized");
+    const user = await ctx.db.query("users").withIndex("by_clerkId", q => q.eq("clerkId", identity.subject)).unique();
+    if (!user) throw new Error("User not found");
+
+    const member = await ctx.db.query("companyMembers").withIndex("by_company_and_user", q => q.eq("companyId", role.companyId).eq("userId", user._id)).unique();
+    if (member?.role !== "admin") throw new Error("Only admins can edit roles");
+
+    await ctx.db.patch(args.roleId, {
       name: args.name,
       color: args.color,
       description: args.description
@@ -43,7 +72,7 @@ export const requestRole = mutation({
     if (!identity) throw new Error("Unauthorized");
     
     const user = await ctx.db.query("users").withIndex("by_clerkId", q => q.eq("clerkId", identity.subject)).unique();
-    if (!user) throw new Error("User not found"); // FIX: Ensure user exists
+    if (!user) throw new Error("User not found"); 
 
     // Check pending
     const existing = await ctx.db.query("roleRequests").withIndex("by_company", q => q.eq("companyId", args.companyId))

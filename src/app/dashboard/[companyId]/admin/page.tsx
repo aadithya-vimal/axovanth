@@ -34,6 +34,9 @@ export default function AdminDashboard() {
   // ----------------------------------------------------------------------
   const [activeTab, setActiveTab] = useState<'hierarchy' | 'workspaces' | 'roles' | 'requests'>('hierarchy');
   
+  // Alert Modal State (Replaces native alert)
+  const [alertInfo, setAlertInfo] = useState<{ isOpen: boolean; title: string; message: string; type: 'error' | 'success' }>({ isOpen: false, title: "", message: "", type: "error" });
+
   // Modal States
   const [memberToRemove, setMemberToRemove] = useState<any>(null);
   const [isCreateWorkspaceOpen, setIsCreateWorkspaceOpen] = useState(false);
@@ -42,9 +45,11 @@ export default function AdminDashboard() {
   
   // Workspace Management State
   const [selectedWorkspaceId, setSelectedWorkspaceId] = useState<string | null>(null);
+  const [editWorkspaceModal, setEditWorkspaceModal] = useState<{ isOpen: boolean; id: Id<"workspaces">; name: string } | null>(null);
   
   // Custom Role Management State
   const [newRole, setNewRole] = useState({ name: "", color: "blue", description: "" });
+  const [editRoleModal, setEditRoleModal] = useState<{ isOpen: boolean; role: any } | null>(null);
   
   // Member Edit Modal State
   const [editMemberModal, setEditMemberModal] = useState<{
@@ -65,7 +70,7 @@ export default function AdminDashboard() {
     targetName: string; // Role name or Workspace name
   } | null>(null);
   
-  // Dropdown UI State (for custom select inside modal)
+  // Dropdown UI State
   const [activeDropdown, setActiveDropdown] = useState<string | null>(null);
 
   // ----------------------------------------------------------------------
@@ -92,6 +97,7 @@ export default function AdminDashboard() {
   
   const createWorkspace = useMutation(api.workspaces.create);
   const deleteWorkspace = useMutation(api.workspaces.deleteWorkspace);
+  const updateWorkspaceName = useMutation(api.workspaces.updateName); // NEW
   const addWorkspaceMember = useMutation(api.workspaces.addMember);
   const updateWorkspaceRole = useMutation(api.workspaces.updateRole);
   const updateWorkspaceHead = useMutation(api.workspaces.updateHead);
@@ -99,6 +105,7 @@ export default function AdminDashboard() {
   const resolveWsRequest = useMutation(api.workspaces.resolveAccessRequest);
 
   const createRole = useMutation(api.roles.createRole);
+  const updateRole = useMutation(api.roles.updateRole); // NEW
   const deleteRole = useMutation(api.roles.deleteRole);
   const resolveRoleRequest = useMutation(api.roles.resolveRequest);
 
@@ -106,10 +113,14 @@ export default function AdminDashboard() {
   // ACTION HANDLERS
   // ----------------------------------------------------------------------
 
+  const showAlert = (title: string, message: string, type: 'error' | 'success' = 'error') => {
+    setAlertInfo({ isOpen: true, title, message, type });
+  };
+
   const confirmRemoval = async () => {
     if (memberToRemove) {
       if (memberToRemove.user?.clerkId === clerkUser?.id) {
-        alert("Security Violation: Super-Admin cannot self-terminate.");
+        showAlert("Security Violation", "Super-Admin cannot self-terminate.");
         setMemberToRemove(null);
         return;
       }
@@ -117,7 +128,7 @@ export default function AdminDashboard() {
         await removeMember({ memberId: memberToRemove._id });
         setMemberToRemove(null);
       } catch (e: any) {
-        alert(e.message);
+        showAlert("Error", e.message);
       }
     }
   };
@@ -129,7 +140,17 @@ export default function AdminDashboard() {
       setIsCreateWorkspaceOpen(false);
       setNewWorkspaceName("");
     } catch (e: any) {
-      alert("Provisioning Failed: " + e.message);
+      showAlert("Provisioning Failed", e.message);
+    }
+  };
+
+  const handleUpdateWorkspaceName = async () => {
+    if (!editWorkspaceModal || !editWorkspaceModal.name.trim()) return;
+    try {
+        await updateWorkspaceName({ workspaceId: editWorkspaceModal.id, name: editWorkspaceModal.name });
+        setEditWorkspaceModal(null);
+    } catch (e: any) {
+        showAlert("Update Failed", e.message);
     }
   };
 
@@ -140,7 +161,7 @@ export default function AdminDashboard() {
         setWorkspaceToDelete(null);
         if (selectedWorkspaceId === workspaceToDelete.id) setSelectedWorkspaceId(null);
     } catch (e: any) {
-        alert("Deletion Failed: " + e.message);
+        showAlert("Deletion Failed", e.message);
     }
   }
 
@@ -163,7 +184,7 @@ export default function AdminDashboard() {
       });
       setEditMemberModal(null);
     } catch (e: any) {
-      alert("Update failed: " + e.message);
+      showAlert("Update failed", e.message);
     }
   };
 
@@ -172,7 +193,7 @@ export default function AdminDashboard() {
     try {
       await addWorkspaceMember({ workspaceId: selectedWorkspaceId as any, userId, role });
     } catch (e: any) {
-      alert(e.message);
+      showAlert("Error", e.message);
     }
   };
 
@@ -180,9 +201,9 @@ export default function AdminDashboard() {
     if (!selectedWorkspaceId) return;
     try {
         await updateWorkspaceHead({ workspaceId: selectedWorkspaceId as any, userId: userId as any });
-        alert("Workspace Head updated successfully.");
+        showAlert("Success", "Workspace Head updated successfully.", "success");
     } catch(e: any) {
-        alert(e.message);
+        showAlert("Error", e.message);
     }
   }
 
@@ -192,11 +213,25 @@ export default function AdminDashboard() {
       await createRole({ companyId, ...newRole });
       setNewRole({ name: "", color: "blue", description: "" });
     } catch (e: any) {
-      alert(e.message);
+      showAlert("Error", e.message);
     }
   }
 
-  // --- NEW: Decision Handling ---
+  const handleUpdateRole = async () => {
+    if (!editRoleModal) return;
+    try {
+      await updateRole({ 
+        roleId: editRoleModal.role._id, 
+        name: editRoleModal.role.name, 
+        color: editRoleModal.role.color, 
+        description: editRoleModal.role.description 
+      });
+      setEditRoleModal(null);
+    } catch (e: any) {
+      showAlert("Error", e.message);
+    }
+  };
+
   const initiateDecision = (
     type: 'role' | 'workspace', 
     id: string, 
@@ -220,7 +255,7 @@ export default function AdminDashboard() {
       }
       setDecisionModal(null);
     } catch (e: any) {
-      alert("Processing failed: " + e.message);
+      showAlert("Processing failed", e.message);
     }
   };
 
@@ -234,9 +269,6 @@ export default function AdminDashboard() {
   const activeMembers = members.filter(m => m.status === "active");
   const pendingRequestCount = roleRequests.length + workspaceRequests.filter(r => r.status === 'pending').length + pendingMembers.length;
 
-  // ----------------------------------------------------------------------
-  // CUSTOM DROPDOWN COMPONENT (Internal)
-  // ----------------------------------------------------------------------
   const CustomDropdown = ({ label, value, options, onChange, id, disabled = false }: any) => {
     const isOpen = activeDropdown === id;
     const selectedLabel = options.find((o: any) => o.value === value)?.label || "Select...";
@@ -283,6 +315,29 @@ export default function AdminDashboard() {
     <div className="max-w-7xl mx-auto space-y-8 md:space-y-12 pb-40 animate-in fade-in slide-in-from-bottom-4 duration-700 font-sans" onClick={() => { /* Close dropdowns if clicking background? Optional polish */ }}>
       
       {/* ---------------------------------------------------------------------- */}
+      {/* GLOBAL ALERT MODAL */}
+      {/* ---------------------------------------------------------------------- */}
+      {alertInfo.isOpen && (
+        <div className="fixed inset-0 z-[500] flex items-center justify-center bg-black/60 backdrop-blur-md p-4 animate-in fade-in">
+          <div className="bg-background border border-border p-6 rounded-3xl shadow-2xl max-w-sm w-full animate-in zoom-in-95 relative">
+            <div className={`w-12 h-12 rounded-xl flex items-center justify-center mb-4 mx-auto border ${
+              alertInfo.type === 'error' ? 'bg-red-500/10 text-red-500 border-red-500/20' : 'bg-green-500/10 text-green-500 border-green-500/20'
+            }`}>
+              {alertInfo.type === 'error' ? <AlertTriangle className="w-6 h-6" /> : <Check className="w-6 h-6" />}
+            </div>
+            <h3 className="text-center text-lg font-bold text-foreground mb-2">{alertInfo.title}</h3>
+            <p className="text-center text-sm text-muted mb-6 leading-relaxed">{alertInfo.message}</p>
+            <button 
+              onClick={() => setAlertInfo({ ...alertInfo, isOpen: false })} 
+              className="w-full py-3 rounded-xl bg-foreground text-background font-bold text-xs uppercase tracking-wider hover:opacity-90 transition-opacity"
+            >
+              Acknowledge
+            </button>
+          </div>
+        </div>
+      )}
+
+      {/* ---------------------------------------------------------------------- */}
       {/* WORKSPACE DELETE MODAL */}
       {/* ---------------------------------------------------------------------- */}
       {workspaceToDelete && (
@@ -310,6 +365,74 @@ export default function AdminDashboard() {
               >
                 Destroy
               </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* EDIT WORKSPACE MODAL */}
+      {editWorkspaceModal && (
+        <div className="fixed inset-0 z-[400] flex items-center justify-center bg-black/60 backdrop-blur-md p-4">
+          <div className="glass-panel max-w-md w-full p-8 rounded-[32px] shadow-2xl border-border bg-background animate-in zoom-in duration-200">
+            <div className="flex justify-between items-center mb-6">
+              <h3 className="text-xl font-bold text-foreground">Rename Environment</h3>
+              <button onClick={() => setEditWorkspaceModal(null)}><X className="w-5 h-5 text-muted hover:text-foreground cursor-pointer" /></button>
+            </div>
+            <div className="space-y-4">
+               <div>
+                 <label className="text-[10px] font-bold text-muted uppercase tracking-wider ml-1">Environment Name</label>
+                 <input 
+                    className="input-field mt-1" 
+                    value={editWorkspaceModal.name} 
+                    onChange={(e) => setEditWorkspaceModal({...editWorkspaceModal, name: e.target.value})} 
+                    autoFocus 
+                 />
+               </div>
+               <button onClick={handleUpdateWorkspaceName} className="apple-button w-full mt-4 justify-center shadow-lg shadow-accent/20 cursor-pointer">Save Changes</button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* EDIT ROLE MODAL */}
+      {editRoleModal && (
+        <div className="fixed inset-0 z-[400] flex items-center justify-center bg-black/60 backdrop-blur-md p-4">
+          <div className="glass-panel max-w-md w-full p-8 rounded-[32px] shadow-2xl border-border bg-background animate-in zoom-in duration-200">
+            <div className="flex justify-between items-center mb-6">
+              <h3 className="text-xl font-bold text-foreground">Edit Role Definition</h3>
+              <button onClick={() => setEditRoleModal(null)}><X className="w-5 h-5 text-muted hover:text-foreground cursor-pointer" /></button>
+            </div>
+            <div className="space-y-4">
+               <div>
+                 <label className="text-[10px] font-bold text-muted uppercase tracking-wider ml-1">Role Name</label>
+                 <input 
+                    className="input-field mt-1" 
+                    value={editRoleModal.role.name} 
+                    onChange={(e) => setEditRoleModal({...editRoleModal, role: {...editRoleModal.role, name: e.target.value}})} 
+                 />
+               </div>
+               <div>
+                 <label className="text-[10px] font-bold text-muted uppercase tracking-wider ml-1">Description</label>
+                 <textarea 
+                    className="input-field mt-1 h-20 resize-none" 
+                    value={editRoleModal.role.description} 
+                    onChange={(e) => setEditRoleModal({...editRoleModal, role: {...editRoleModal.role, description: e.target.value}})} 
+                 />
+               </div>
+               <div>
+                <label className="text-[10px] font-bold text-muted uppercase tracking-wider ml-1">Color Code</label>
+                <div className="flex gap-2 mt-2">
+                  {['blue', 'green', 'purple', 'orange', 'red'].map(c => (
+                    <button 
+                      key={c}
+                      onClick={() => setEditRoleModal({...editRoleModal, role: {...editRoleModal.role, color: c}})}
+                      className={`w-6 h-6 rounded-full border-2 transition-all ${editRoleModal.role.color === c ? 'border-foreground scale-110' : 'border-transparent'}`}
+                      style={{ backgroundColor: `var(--color-${c}-500, ${c})` }} 
+                    />
+                  ))}
+                </div>
+              </div>
+               <button onClick={handleUpdateRole} className="apple-button w-full mt-4 justify-center shadow-lg shadow-accent/20 cursor-pointer">Save Changes</button>
             </div>
           </div>
         </div>
@@ -639,7 +762,7 @@ export default function AdminDashboard() {
                    <span className="text-xs font-bold text-muted group-hover:text-accent uppercase tracking-wider">Provision Env</span>
                 </button>
                 
-                {/* WORKSPACE LIST - Removed scroll container for better list flow */}
+                {/* WORKSPACE LIST */}
                 <div className="space-y-3">
                   {workspaces.map(ws => {
                     const WsIcon = WorkspaceIconMap[ws.emoji] || Layers;
@@ -660,14 +783,22 @@ export default function AdminDashboard() {
                           {selectedWorkspaceId === ws._id && <ChevronDown className="w-4 h-4 -rotate-90 flex-shrink-0" />}
                         </button>
                         
-                        {!ws.isDefault && (
-                          <button 
-                            onClick={(e) => { e.stopPropagation(); setWorkspaceToDelete({ id: ws._id, name: ws.name }); }}
-                            className="absolute top-1/2 -right-10 -translate-y-1/2 p-2 bg-red-500/10 text-red-500 hover:bg-red-500 hover:text-white rounded-xl transition-all opacity-0 group-hover:opacity-100 group-hover:right-2"
-                          >
-                            <Trash2 className="w-4 h-4" />
-                          </button>
-                        )}
+                        <div className="absolute top-1/2 -right-12 -translate-y-1/2 flex gap-1 transition-all opacity-0 group-hover:opacity-100 group-hover:right-2">
+                            <button 
+                                onClick={(e) => { e.stopPropagation(); setEditWorkspaceModal({ isOpen: true, id: ws._id, name: ws.name }); }}
+                                className={`p-2 bg-foreground/10 text-foreground hover:bg-foreground/20 rounded-xl transition-all ${selectedWorkspaceId === ws._id ? "text-white bg-white/20 hover:bg-white/30" : ""}`}
+                            >
+                                <Edit2 className="w-3.5 h-3.5" />
+                            </button>
+                            {!ws.isDefault && (
+                            <button 
+                                onClick={(e) => { e.stopPropagation(); setWorkspaceToDelete({ id: ws._id, name: ws.name }); }}
+                                className={`p-2 bg-red-500/10 text-red-500 hover:bg-red-500 hover:text-white rounded-xl transition-all ${selectedWorkspaceId === ws._id ? "bg-white/10 text-white hover:bg-red-500" : ""}`}
+                            >
+                                <Trash2 className="w-3.5 h-3.5" />
+                            </button>
+                            )}
+                        </div>
                       </div>
                     );
                   })}
@@ -838,9 +969,14 @@ export default function AdminDashboard() {
                     <div>
                       <div className="flex justify-between items-start mb-2">
                         <h4 className="font-bold text-foreground text-lg">{r.name}</h4>
-                        <button onClick={() => deleteRole({ roleId: r._id })} className="p-2 -mr-2 -mt-2 hover:bg-red-500/10 text-muted hover:text-red-500 rounded-xl opacity-0 group-hover:opacity-100 transition-all">
-                          <X className="w-4 h-4" />
-                        </button>
+                        <div className="flex gap-1 -mr-2 -mt-2 opacity-0 group-hover:opacity-100 transition-all">
+                            <button onClick={() => setEditRoleModal({ isOpen: true, role: r })} className="p-2 hover:bg-foreground/10 text-muted hover:text-foreground rounded-xl">
+                                <Edit2 className="w-3.5 h-3.5" />
+                            </button>
+                            <button onClick={() => deleteRole({ roleId: r._id })} className="p-2 hover:bg-red-500/10 text-muted hover:text-red-500 rounded-xl">
+                                <X className="w-4 h-4" />
+                            </button>
+                        </div>
                       </div>
                       <p className="text-sm text-muted leading-relaxed line-clamp-2">{r.description || "No description provided."}</p>
                     </div>

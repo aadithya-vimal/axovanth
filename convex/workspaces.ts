@@ -19,13 +19,10 @@ export const getMyMemberships = query({
     const user = await ctx.db.query("users").withIndex("by_clerkId", q => q.eq("clerkId", identity.subject)).unique();
     if (!user) return [];
 
-    // 1. Check if the user is an Organization Admin
     const companyMember = await ctx.db.query("companyMembers")
       .withIndex("by_company_and_user", q => q.eq("companyId", args.companyId).eq("userId", user._id))
       .unique();
 
-    // 2. SUPER ADMIN BYPASS: If admin, return ALL workspace IDs immediately.
-    // This fixes the bug where admins saw locks, and ensures "reverse" logic works (demotion = loss of access).
     if (companyMember?.role === "admin") {
       const allWorkspaces = await ctx.db.query("workspaces")
         .withIndex("by_company", q => q.eq("companyId", args.companyId))
@@ -33,12 +30,10 @@ export const getMyMemberships = query({
       return allWorkspaces.map(ws => ws._id);
     }
 
-    // 3. Standard Employee Logic: Return only explicit memberships
     const memberships = await ctx.db.query("workspaceMembers").withIndex("by_user", q => q.eq("userId", user._id)).collect();
     const myWorkspaceIds = [];
     for (const m of memberships) {
       const ws = await ctx.db.get(m.workspaceId);
-      // Ensure the workspace belongs to the current company context
       if (ws && ws.companyId === args.companyId) {
         myWorkspaceIds.push(m.workspaceId);
       }
@@ -55,7 +50,6 @@ export const requestAccess = mutation({
     const user = await ctx.db.query("users").withIndex("by_clerkId", q => q.eq("clerkId", identity.subject)).unique();
     if (!user) throw new Error("User not found");
 
-    // Optional: Auto-deny if they are already admin (frontend should hide button, but safety check)
     const ws = await ctx.db.get(args.workspaceId);
     if (ws) {
         const companyMember = await ctx.db.query("companyMembers")
@@ -272,6 +266,28 @@ export const create = mutation({
   },
 });
 
+// NEW: Rename Workspace
+export const updateName = mutation({
+  args: { workspaceId: v.id("workspaces"), name: v.string() },
+  handler: async (ctx, args) => {
+    const identity = await ctx.auth.getUserIdentity();
+    if (!identity) throw new Error("Unauthorized");
+    const user = await ctx.db.query("users").withIndex("by_clerkId", (q) => q.eq("clerkId", identity.subject)).unique();
+    if (!user) throw new Error("User not found");
+
+    const workspace = await ctx.db.get(args.workspaceId);
+    if (!workspace) throw new Error("Workspace not found");
+
+    const companyMember = await ctx.db.query("companyMembers")
+      .withIndex("by_company_and_user", q => q.eq("companyId", workspace.companyId).eq("userId", user._id))
+      .unique();
+
+    if (companyMember?.role !== "admin") throw new Error("Only Organization Admins can rename Workspaces.");
+
+    await ctx.db.patch(args.workspaceId, { name: args.name });
+  },
+});
+
 export const updateHead = mutation({
   args: {
     workspaceId: v.id("workspaces"),
@@ -287,27 +303,23 @@ export const updateHead = mutation({
     const workspace = await ctx.db.get(args.workspaceId);
     if (!workspace) throw new Error("Workspace not found");
 
-    // Check if requester is company admin
     const companyMember = await ctx.db.query("companyMembers")
       .withIndex("by_company_and_user", q => q.eq("companyId", workspace.companyId).eq("userId", user._id))
       .unique();
 
     if (companyMember?.role !== "admin") throw new Error("Only Organization Admins can reassign Workspace Heads.");
 
-    // Ensure new head is a member of the workspace
     const targetMember = await ctx.db.query("workspaceMembers")
       .withIndex("by_workspace_and_user", q => q.eq("workspaceId", args.workspaceId).eq("userId", args.userId))
       .unique();
 
     if (!targetMember) {
-        // Auto-add as admin if not present
         await ctx.db.insert("workspaceMembers", {
             workspaceId: args.workspaceId,
             userId: args.userId,
             role: "admin"
         });
     } else if (targetMember.role !== "admin") {
-        // Upgrade to admin
         await ctx.db.patch(targetMember._id, { role: "admin" });
     }
 
@@ -392,22 +404,17 @@ export const deleteWorkspace = mutation({
       throw new Error("Insufficient privileges to delete environment.");
     }
 
-    // 1. Delete Workspace
     await ctx.db.delete(args.workspaceId);
     
-    // 2. Cascade Delete Members
     const members = await ctx.db.query("workspaceMembers").withIndex("by_workspace", q => q.eq("workspaceId", args.workspaceId)).collect();
     for (const m of members) await ctx.db.delete(m._id);
 
-    // 3. Cascade Delete Requests
     const requests = await ctx.db.query("workspaceRequests").withIndex("by_workspace", q => q.eq("workspaceId", args.workspaceId)).collect();
     for (const r of requests) await ctx.db.delete(r._id);
 
-    // 4. Cascade Delete Tickets
     const tickets = await ctx.db.query("tickets").withIndex("by_workspace", q => q.eq("workspaceId", args.workspaceId)).collect();
     for (const t of tickets) await ctx.db.delete(t._id);
 
-    // 5. Cascade Delete Messages (Chat)
     const messages = await ctx.db.query("messages").withIndex("by_workspace", q => q.eq("workspaceId", args.workspaceId)).collect();
     for (const m of messages) await ctx.db.delete(m._id);
   }

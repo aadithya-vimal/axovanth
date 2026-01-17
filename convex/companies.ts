@@ -62,7 +62,7 @@ export const updateDetails = mutation({
     const user = await ctx.db.query("users").withIndex("by_clerkId", q => q.eq("clerkId", identity.subject)).unique();
     if (!user) throw new Error("User not found");
 
-    // FIX: Check for Admin Role in companyMembers instead of strict AdminId ownership
+    // Check for Admin Role
     const member = await ctx.db.query("companyMembers")
       .withIndex("by_company_and_user", q => q.eq("companyId", args.companyId).eq("userId", user._id))
       .unique();
@@ -88,7 +88,7 @@ export const transferOwnership = mutation({
     const user = await ctx.db.query("users").withIndex("by_clerkId", q => q.eq("clerkId", identity.subject)).unique();
     if (!user) throw new Error("User not found");
 
-    // FIX: Allow any Admin to transfer ownership
+    // Allow any Admin to transfer ownership
     const member = await ctx.db.query("companyMembers")
       .withIndex("by_company_and_user", q => q.eq("companyId", args.companyId).eq("userId", user._id))
       .unique();
@@ -111,7 +111,7 @@ export const deleteCompany = mutation({
     const user = await ctx.db.query("users").withIndex("by_clerkId", q => q.eq("clerkId", identity.subject)).unique();
     if (!user) throw new Error("User not found");
 
-    // FIX: Check for Admin Role
+    // Check for Admin Role
     const member = await ctx.db.query("companyMembers")
       .withIndex("by_company_and_user", q => q.eq("companyId", args.companyId).eq("userId", user._id))
       .unique();
@@ -177,7 +177,6 @@ export const getMembers = query({
   },
 });
 
-// Consolidated update profile (Designation, Role, System Role)
 export const updateMemberProfile = mutation({
   args: {
     memberId: v.id("companyMembers"),
@@ -199,18 +198,13 @@ export const updateMemberProfile = mutation({
 
     if (!isAdmin && !isSelf) throw new Error("Security Violation: Insufficient privileges.");
     
-    // Strict System Role Checks
     if (args.role !== memberToUpdate.role) {
         if (!isAdmin) throw new Error("Security Violation: Only admins can change system roles.");
         
         const company = await ctx.db.get(memberToUpdate.companyId);
-        
-        // Prevent demoting Owner
         if (company?.adminId === memberToUpdate.userId && args.role !== "admin") {
              throw new Error("Security Violation: Cannot demote the Organization Owner.");
         }
-
-        // Prevent Self-Demotion (Safety Lock)
         if (memberToUpdate.userId === requesterUser._id && args.role !== "admin") {
              throw new Error("Safety Lock: You cannot demote yourself. Ask another admin to do this.");
         }
@@ -224,7 +218,6 @@ export const updateMemberProfile = mutation({
   },
 });
 
-// Legacy single-purpose role update (kept for compatibility with inline dropdowns)
 export const updateMemberRole = mutation({
   args: {
     memberId: v.id("companyMembers"),
@@ -240,13 +233,8 @@ export const updateMemberRole = mutation({
     const requesterMember = await ctx.db.query("companyMembers").withIndex("by_company_and_user", (q) => q.eq("companyId", memberToUpdate.companyId).eq("userId", requesterUser._id)).unique();
     const company = await ctx.db.get(memberToUpdate.companyId);
 
-    // 1. Only Admins can use this
     if (requesterMember?.role !== "admin") throw new Error("Security Violation: Insufficient privileges.");
-    
-    // 2. Cannot demote Owner
     if (company?.adminId === memberToUpdate.userId && args.role !== "admin") throw new Error("Security Violation: Cannot demote the Organization Owner.");
-
-    // 3. Cannot demote Self
     if (memberToUpdate.userId === requesterUser._id && args.role !== "admin") throw new Error("Safety Lock: You cannot demote yourself.");
 
     await ctx.db.patch(args.memberId, { role: args.role });
@@ -287,10 +275,27 @@ export const updateMemberDesignation = mutation({
   },
 });
 
+// BUG FIX: Removing a member now removes them from all workspaces in that company
 export const removeMember = mutation({
   args: { memberId: v.id("companyMembers") },
   handler: async (ctx, args) => {
+    const member = await ctx.db.get(args.memberId);
+    if (!member) return;
+
+    // 1. Delete from Company
     await ctx.db.delete(args.memberId);
+
+    // 2. Cascade Delete from Workspaces belonging to this company
+    const wsMemberships = await ctx.db.query("workspaceMembers")
+      .withIndex("by_user", q => q.eq("userId", member.userId))
+      .collect();
+
+    for (const wsMem of wsMemberships) {
+      const workspace = await ctx.db.get(wsMem.workspaceId);
+      if (workspace && workspace.companyId === member.companyId) {
+        await ctx.db.delete(wsMem._id);
+      }
+    }
   },
 });
 
