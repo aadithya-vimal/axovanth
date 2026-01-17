@@ -19,7 +19,7 @@ export default function GeneralChat() {
   const [searchTerm, setSearchTerm] = useState("");
   
   // Responsive Sidebar State
-  const [isSidebarOpen, setIsSidebarOpen] = useState(false); // Default closed on mobile, logic handled in render
+  const [isSidebarOpen, setIsSidebarOpen] = useState(false);
   
   // File Upload State
   const [isUploading, setIsUploading] = useState(false);
@@ -207,14 +207,15 @@ export default function GeneralChat() {
               type="button" 
               onClick={() => fileInputRef.current?.click()}
               disabled={isUploading}
-              className="h-9 w-9 flex-shrink-0 flex items-center justify-center rounded-full hover:bg-foreground/5 text-muted hover:text-foreground transition-colors disabled:opacity-50"
+              className="h-9 w-9 lg:h-10 lg:w-10 flex-shrink-0 flex items-center justify-center rounded-full hover:bg-foreground/5 text-muted hover:text-foreground transition-colors disabled:opacity-50"
             >
               {isUploading ? <Loader2 className="w-5 h-5 animate-spin text-accent" /> : <Paperclip className="w-5 h-5" />}
             </button>
             
+            {/* FIXED: Reduced min-height and padding to align with buttons */}
             <textarea 
               placeholder="Transmit message..." 
-              className="flex-1 bg-transparent border-none outline-none py-2 max-h-32 min-h-[36px] resize-none text-sm font-medium text-foreground placeholder:text-muted/70 custom-scrollbar leading-relaxed"
+              className="flex-1 bg-transparent border-none outline-none py-2 lg:py-2.5 max-h-32 min-h-[36px] lg:min-h-[40px] resize-none text-sm font-medium text-foreground placeholder:text-muted/70 custom-scrollbar leading-relaxed"
               value={message}
               onChange={(e) => setMessage(e.target.value)}
               onKeyDown={(e) => {
@@ -228,7 +229,7 @@ export default function GeneralChat() {
             <button 
               type="submit" 
               disabled={!message.trim() && !isUploading}
-              className="h-9 w-9 flex-shrink-0 flex items-center justify-center bg-accent hover:bg-accent/90 disabled:bg-muted disabled:cursor-not-allowed rounded-full text-white transition-all shadow-md shadow-accent/20 group"
+              className="h-9 w-9 lg:h-10 lg:w-10 flex-shrink-0 flex items-center justify-center bg-accent hover:bg-accent/90 disabled:bg-muted disabled:cursor-not-allowed rounded-full text-white transition-all shadow-md shadow-accent/20 group"
             >
               <Send className="w-4 h-4 group-hover:translate-x-0.5 group-hover:-translate-y-0.5 transition-transform" />
             </button>
