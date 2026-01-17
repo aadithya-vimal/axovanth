@@ -199,7 +199,7 @@ export default function GeneralChat() {
         <div className="p-3 lg:p-4 bg-background/80 backdrop-blur-xl border-t border-border">
           <form 
             onSubmit={(e) => handleSend(e)} 
-            className="glass-panel p-1.5 lg:p-2 rounded-[24px] lg:rounded-[26px] border border-border bg-background flex items-end gap-2 shadow-sm focus-within:border-accent/30 transition-all relative"
+            className="glass-panel p-2 rounded-[24px] lg:rounded-[26px] border border-border bg-background flex items-end gap-2 shadow-sm focus-within:border-accent/30 transition-all relative"
           >
             <input type="file" ref={fileInputRef} className="hidden" onChange={handleFileUpload} />
 
@@ -207,14 +207,14 @@ export default function GeneralChat() {
               type="button" 
               onClick={() => fileInputRef.current?.click()}
               disabled={isUploading}
-              className="h-9 w-9 lg:h-10 lg:w-10 flex-shrink-0 flex items-center justify-center rounded-full hover:bg-foreground/5 text-muted hover:text-foreground transition-colors disabled:opacity-50 mb-0.5 lg:mb-1"
+              className="h-9 w-9 flex-shrink-0 flex items-center justify-center rounded-full hover:bg-foreground/5 text-muted hover:text-foreground transition-colors disabled:opacity-50"
             >
               {isUploading ? <Loader2 className="w-5 h-5 animate-spin text-accent" /> : <Paperclip className="w-5 h-5" />}
             </button>
             
             <textarea 
               placeholder="Transmit message..." 
-              className="flex-1 bg-transparent border-none outline-none py-2.5 lg:py-3 max-h-32 min-h-[44px] lg:min-h-[48px] resize-none text-sm font-medium text-foreground placeholder:text-muted/70 custom-scrollbar leading-relaxed"
+              className="flex-1 bg-transparent border-none outline-none py-2 max-h-32 min-h-[36px] resize-none text-sm font-medium text-foreground placeholder:text-muted/70 custom-scrollbar leading-relaxed"
               value={message}
               onChange={(e) => setMessage(e.target.value)}
               onKeyDown={(e) => {
@@ -228,7 +228,7 @@ export default function GeneralChat() {
             <button 
               type="submit" 
               disabled={!message.trim() && !isUploading}
-              className="h-9 w-9 lg:h-10 lg:w-10 flex-shrink-0 flex items-center justify-center bg-accent hover:bg-accent/90 disabled:bg-muted disabled:cursor-not-allowed rounded-full text-white transition-all shadow-md shadow-accent/20 group mb-0.5 lg:mb-1"
+              className="h-9 w-9 flex-shrink-0 flex items-center justify-center bg-accent hover:bg-accent/90 disabled:bg-muted disabled:cursor-not-allowed rounded-full text-white transition-all shadow-md shadow-accent/20 group"
             >
               <Send className="w-4 h-4 group-hover:translate-x-0.5 group-hover:-translate-y-0.5 transition-transform" />
             </button>
@@ -237,10 +237,8 @@ export default function GeneralChat() {
       </div>
 
       {/* MEMBER SIDEBAR - RESPONSIVE */}
-      {/* On Desktop: It's a sidebar. On Mobile: It's a full overlay. */}
       {isSidebarOpen && (
         <>
-          {/* Mobile Overlay Background */}
           <div 
             className="fixed inset-0 bg-black/50 z-40 lg:hidden backdrop-blur-sm animate-in fade-in duration-200"
             onClick={() => setIsSidebarOpen(false)}
