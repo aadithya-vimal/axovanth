@@ -106,15 +106,13 @@ export default defineSchema({
   .index("by_company", ["companyId"])
   .index("by_workspace", ["workspaceId"]),
 
-  // NEW: Audit Log for Kanban
   kanbanEvents: defineTable({
     taskId: v.id("kanbanTasks"),
     actorId: v.id("users"),
-    type: v.string(), // 'created', 'status_change', 'update', 'comment'
-    metadata: v.optional(v.string()), // "Changed priority to High"
+    type: v.string(), 
+    metadata: v.optional(v.string()), 
   }).index("by_task", ["taskId"]),
 
-  // NEW: Chat/Comments for Kanban
   kanbanComments: defineTable({
     taskId: v.id("kanbanTasks"),
     authorId: v.id("users"),
@@ -122,12 +120,24 @@ export default defineSchema({
   }).index("by_task", ["taskId"]),
 
   assets: defineTable({
-    workspaceId: v.id("workspaces"),
+    companyId: v.id("companies"), 
+    workspaceId: v.optional(v.id("workspaces")), 
     storageId: v.string(),
     fileName: v.string(),
     fileType: v.string(),
     uploaderId: v.id("users"),
-  }).index("by_workspace", ["workspaceId"]),
+  })
+  .index("by_workspace", ["workspaceId"])
+  .index("by_company", ["companyId"]),
+
+  // NEW: Audit Log for Assets (Tracks Uploads & Deletions)
+  assetEvents: defineTable({
+    companyId: v.id("companies"),
+    actorId: v.id("users"),
+    type: v.union(v.literal("upload"), v.literal("delete")),
+    description: v.string(), // e.g. "Uploaded contract.pdf", "Deleted image.png"
+    metadata: v.optional(v.string()),
+  }).index("by_company", ["companyId"]),
 
   messages: defineTable({
     companyId: v.id("companies"),

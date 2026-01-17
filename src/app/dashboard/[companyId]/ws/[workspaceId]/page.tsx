@@ -20,7 +20,7 @@ export default function WorkspacePage() {
 
   // Data
   const tickets = useQuery(api.tickets.getByWorkspace, { workspaceId });
-  const kanbanTasks = useQuery(api.kanban.getAll, { companyId, workspaceId }); // Filtered by this workspace
+  const kanbanTasks = useQuery(api.kanban.getAll, { companyId, workspaceId }); 
   const assets = useQuery(api.files.getByWorkspace, { workspaceId });
   const workspaces = useQuery(api.workspaces.getByCompany, { companyId });
   const members = useQuery(api.workspaces.getMembers, { workspaceId });
@@ -55,8 +55,8 @@ export default function WorkspacePage() {
   const [drawerTab, setDrawerTab] = useState<'chat' | 'audit' | 'details'>('chat'); 
   
   const [confirmAction, setConfirmAction] = useState<{type: 'resolve' | 'reopen' | 'transfer', targetId?: string} | null>(null);
-  const [isModalOpen, setIsModalOpen] = useState(false); // Ticket Modal
-  const [isTaskModalOpen, setIsTaskModalOpen] = useState(false); // Kanban Modal
+  const [isModalOpen, setIsModalOpen] = useState(false); 
+  const [isTaskModalOpen, setIsTaskModalOpen] = useState(false); 
   const [isUploading, setIsUploading] = useState(false);
   const [commentText, setCommentText] = useState("");
   const [newTicket, setNewTicket] = useState({ title: "", description: "", priority: "medium" as const, type: "task" as const });
@@ -173,7 +173,14 @@ export default function WorkspacePage() {
       const postUrl = await generateUploadUrl();
       const result = await fetch(postUrl, { method: "POST", headers: { "Content-Type": file.type }, body: file });
       const { storageId } = await result.json();
-      await sendFile({ storageId, workspaceId, fileName: file.name, fileType: file.type });
+      // FIX: Added companyId to payload
+      await sendFile({ 
+        storageId, 
+        companyId, 
+        workspaceId, 
+        fileName: file.name, 
+        fileType: file.type 
+      });
     } catch (error) { console.error(error); } finally { setIsUploading(false); }
   };
 

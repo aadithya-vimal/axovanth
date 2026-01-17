@@ -5,10 +5,26 @@ export const generateUploadUrl = mutation(async (ctx) => {
   return await ctx.storage.generateUploadUrl();
 });
 
+// Helper to log asset events
+async function logAssetEvent(ctx: any, companyId: any, type: "upload" | "delete", description: string) {
+    const identity = await ctx.auth.getUserIdentity();
+    if (!identity) return;
+    const user = await ctx.db.query("users").withIndex("by_clerkId", (q: any) => q.eq("clerkId", identity.subject)).unique();
+    if (!user) return;
+  
+    await ctx.db.insert("assetEvents", {
+      companyId,
+      actorId: user._id,
+      type,
+      description
+    });
+}
+
 export const sendFile = mutation({
   args: {
     storageId: v.id("_storage"),
-    workspaceId: v.id("workspaces"),
+    companyId: v.id("companies"), 
+    workspaceId: v.optional(v.id("workspaces")),
     fileName: v.string(),
     fileType: v.string(),
   },
@@ -21,13 +37,75 @@ export const sendFile = mutation({
       .withIndex("by_clerkId", (q) => q.eq("clerkId", identity.subject))
       .unique();
 
+    if (!user) throw new Error("User not found");
+
     await ctx.db.insert("assets", {
+      companyId: args.companyId,
       workspaceId: args.workspaceId,
       storageId: args.storageId,
       fileName: args.fileName,
       fileType: args.fileType,
-      uploaderId: user!._id,
+      uploaderId: user._id,
     });
+
+    // LOG UPLOAD
+    await logAssetEvent(ctx, args.companyId, "upload", `Uploaded ${args.fileName}`);
+  },
+});
+
+export const deleteFile = mutation({
+  args: { assetId: v.id("assets") },
+  handler: async (ctx, args) => {
+    const identity = await ctx.auth.getUserIdentity();
+    if (!identity) throw new Error("Unauthorized");
+
+    const user = await ctx.db
+      .query("users")
+      .withIndex("by_clerkId", (q) => q.eq("clerkId", identity.subject))
+      .unique();
+
+    if (!user) throw new Error("User not found");
+
+    const asset = await ctx.db.get(args.assetId);
+    if (!asset) throw new Error("Asset not found");
+
+    // SECURITY CHECK: Verify if the user is an Admin of the company owning the asset
+    const member = await ctx.db
+      .query("companyMembers")
+      .withIndex("by_company_and_user", (q) => q.eq("companyId", asset.companyId).eq("userId", user._id))
+      .unique();
+
+    if (member?.role !== "admin") {
+      throw new Error("Security Violation: Only Administrators can modify the Asset Vault.");
+    }
+    
+    await ctx.db.delete(args.assetId);
+
+    // LOG DELETION
+    await logAssetEvent(ctx, asset.companyId, "delete", `Deleted ${asset.fileName}`);
+  }
+});
+
+// Global Company Asset Fetcher
+export const getByCompany = query({
+  args: { companyId: v.id("companies") },
+  handler: async (ctx, args) => {
+    const assets = await ctx.db
+      .query("assets")
+      .withIndex("by_company", (q) => q.eq("companyId", args.companyId))
+      .collect();
+
+    return Promise.all(
+      assets.map(async (asset) => {
+        const uploader = await ctx.db.get(asset.uploaderId);
+        return {
+          ...asset,
+          url: await ctx.storage.getUrl(asset.storageId),
+          uploaderName: uploader?.name,
+          uploadedAt: asset._creationTime
+        };
+      })
+    );
   },
 });
 
@@ -46,4 +124,18 @@ export const getByWorkspace = query({
       }))
     );
   },
+});
+
+// NEW: Fetch Asset History
+export const getAssetEvents = query({
+    args: { companyId: v.id("companies") },
+    handler: async (ctx, args) => {
+        const events = await ctx.db.query("assetEvents").withIndex("by_company", q => q.eq("companyId", args.companyId)).order("desc").collect();
+        return Promise.all(
+            events.map(async (e) => {
+                const actor = await ctx.db.get(e.actorId);
+                return { ...e, actorName: actor?.name, actorRole: "Admin" }; // Assuming only admins delete, users upload
+            })
+        );
+    }
 });
