@@ -111,6 +111,7 @@ export const resolveAccessRequest = mutation({
   }
 });
 
+// FIX: GHOST USER BUSTER IMPLEMENTED HERE
 export const getMembers = query({
   args: { workspaceId: v.id("workspaces") },
   handler: async (ctx, args) => {
@@ -119,12 +120,29 @@ export const getMembers = query({
       .withIndex("by_workspace_and_user", (q) => q.eq("workspaceId", args.workspaceId))
       .collect();
 
-    return await Promise.all(
+    const workspace = await ctx.db.get(args.workspaceId);
+    if (!workspace) return [];
+
+    const validMembers = await Promise.all(
       members.map(async (member) => {
+        // 1. Fetch User Data
         const user = await ctx.db.get(member.userId);
+        if (!user) return null;
+
+        // 2. CRITICAL FIX: Verify they are still in the COMPANY
+        const companyMember = await ctx.db.query("companyMembers")
+            .withIndex("by_company_and_user", q => q.eq("companyId", workspace.companyId).eq("userId", member.userId))
+            .unique();
+        
+        // If not in company, they are a "ghost" -> Filter them out
+        if (!companyMember) return null;
+
         return { ...member, user };
       })
     );
+
+    // Filter out nulls (the ghosts)
+    return validMembers.filter(m => m !== null);
   },
 });
 
@@ -266,7 +284,7 @@ export const create = mutation({
   },
 });
 
-// NEW: Rename Workspace
+// NEW: Mutation to rename workspace
 export const updateName = mutation({
   args: { workspaceId: v.id("workspaces"), name: v.string() },
   handler: async (ctx, args) => {

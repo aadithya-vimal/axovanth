@@ -41,7 +41,6 @@ export const updateRole = mutation({
     const role = await ctx.db.get(args.roleId);
     if (!role) throw new Error("Role not found");
     
-    // Check permissions
     const identity = await ctx.auth.getUserIdentity();
     if (!identity) throw new Error("Unauthorized");
     const user = await ctx.db.query("users").withIndex("by_clerkId", q => q.eq("clerkId", identity.subject)).unique();
@@ -74,7 +73,6 @@ export const requestRole = mutation({
     const user = await ctx.db.query("users").withIndex("by_clerkId", q => q.eq("clerkId", identity.subject)).unique();
     if (!user) throw new Error("User not found"); 
 
-    // Check pending
     const existing = await ctx.db.query("roleRequests").withIndex("by_company", q => q.eq("companyId", args.companyId))
       .filter(q => q.eq(q.field("userId"), user._id))
       .filter(q => q.eq(q.field("status"), "pending"))
