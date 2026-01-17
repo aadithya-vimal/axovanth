@@ -639,9 +639,10 @@ export default function AdminDashboard() {
                    <span className="text-xs font-bold text-muted group-hover:text-accent uppercase tracking-wider">Provision Env</span>
                 </button>
                 
-                <div className="space-y-2 max-h-[300px] lg:max-h-[400px] overflow-y-auto pr-2 custom-scrollbar">
+                {/* WORKSPACE LIST - Removed scroll container for better list flow */}
+                <div className="space-y-3">
                   {workspaces.map(ws => {
-                    const WsIcon = WorkspaceIconMap[ws.emoji] || Layers; // Dynamic Icon Rendering
+                    const WsIcon = WorkspaceIconMap[ws.emoji] || Layers;
                     return (
                       <div key={ws._id} className="relative group">
                         <button 
@@ -652,14 +653,13 @@ export default function AdminDashboard() {
                             : 'bg-background border-border hover:border-accent/50 text-foreground'
                           }`}
                         >
-                          <div className="flex items-center gap-3">
-                            <WsIcon className="w-5 h-5" />
-                            <span className="font-bold text-sm">{ws.name}</span>
+                          <div className="flex items-center gap-3 min-w-0">
+                            <WsIcon className="w-5 h-5 flex-shrink-0" />
+                            <span className="font-bold text-sm truncate">{ws.name}</span>
                           </div>
-                          {selectedWorkspaceId === ws._id && <ChevronDown className="w-4 h-4 -rotate-90" />}
+                          {selectedWorkspaceId === ws._id && <ChevronDown className="w-4 h-4 -rotate-90 flex-shrink-0" />}
                         </button>
                         
-                        {/* DELETE BUTTON - Only shows if not default */}
                         {!ws.isDefault && (
                           <button 
                             onClick={(e) => { e.stopPropagation(); setWorkspaceToDelete({ id: ws._id, name: ws.name }); }}
