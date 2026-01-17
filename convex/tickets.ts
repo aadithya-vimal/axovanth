@@ -63,11 +63,11 @@ export const create = mutation({
   },
 });
 
-// NEW: Generic status update for board movement
+// NEW: Generic status update for board movement (Backlog <-> In Progress <-> Done)
 export const updateStatus = mutation({
   args: { 
     ticketId: v.id("tickets"), 
-    status: v.union(v.literal("open"), v.literal("in_progress"), v.literal("resolved")) 
+    status: v.union(v.literal("open"), v.literal("in_progress"), v.literal("done")) 
   },
   handler: async (ctx, args) => {
     const ticket = await ctx.db.get(args.ticketId);
@@ -186,23 +186,44 @@ export const transfer = mutation({
   },
 });
 
-export const resolve = mutation({
+// RENAMED: 'resolve' -> 'close' to differentiate from "Done" status
+export const close = mutation({
   args: { ticketId: v.id("tickets") },
   handler: async (ctx, args) => {
     const ticket = await ctx.db.get(args.ticketId);
     if (!ticket) throw new Error("Flow ID Invalid");
     const { hasAdminRights, user } = await validateAccess(ctx, ticket.companyId, ticket.workspaceId);
-    if (!hasAdminRights) throw new Error("Security Violation");
+    if (!hasAdminRights) throw new Error("Security Violation: Only Admins can close tickets.");
 
-    await ctx.db.patch(args.ticketId, { status: "resolved" });
+    await ctx.db.patch(args.ticketId, { status: "closed" });
 
     await ctx.db.insert("ticketEvents", {
       ticketId: args.ticketId,
       actorId: user._id,
       type: "status_change",
-      metadata: "Flow resolved successfully",
+      metadata: "Flow closed and archived",
     });
   },
+});
+
+// Legacy support if needed, or simply alias to close
+export const resolve = mutation({
+    args: { ticketId: v.id("tickets") },
+    handler: async (ctx, args) => {
+      const ticket = await ctx.db.get(args.ticketId);
+      if (!ticket) throw new Error("Flow ID Invalid");
+      const { hasAdminRights, user } = await validateAccess(ctx, ticket.companyId, ticket.workspaceId);
+      if (!hasAdminRights) throw new Error("Security Violation");
+  
+      await ctx.db.patch(args.ticketId, { status: "closed" }); // Map legacy resolve to closed
+  
+      await ctx.db.insert("ticketEvents", {
+        ticketId: args.ticketId,
+        actorId: user._id,
+        type: "status_change",
+        metadata: "Flow resolved (closed)",
+      });
+    },
 });
 
 export const reopen = mutation({
@@ -213,6 +234,7 @@ export const reopen = mutation({
     const { hasAdminRights, user } = await validateAccess(ctx, ticket.companyId, ticket.workspaceId);
     if (!hasAdminRights) throw new Error("Security Violation");
 
+    // Reopen moves it back to Backlog (open)
     await ctx.db.patch(args.ticketId, { status: "open" });
 
     await ctx.db.insert("ticketEvents", {

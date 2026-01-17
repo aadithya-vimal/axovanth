@@ -8,7 +8,7 @@ import {
   Ticket, Plus, Hash, UploadCloud, File as FileIcon, Download, 
   Loader2, ArrowRightLeft, X, Send, AlertCircle, ChevronRight, 
   User, RefreshCw, BarChart3, Check, Calendar, Flag, Clock, History, MessageSquare, AlertTriangle,
-  Layout, List, MessageCircle, Paperclip, Smile, Info, ChevronLeft, Trash2
+  Layout, List, MessageCircle, Paperclip, Smile, Info, ChevronLeft, Trash2, StopCircle
 } from "lucide-react";
 import { useUser } from "@clerk/nextjs";
 
@@ -31,6 +31,7 @@ export default function WorkspacePage() {
   const createTicket = useMutation(api.tickets.create);
   const transferTicket = useMutation(api.tickets.transfer);
   const resolveTicket = useMutation(api.tickets.resolve);
+  const closeTicket = useMutation(api.tickets.close); // NEW
   const reopenTicket = useMutation(api.tickets.reopen);
   const addComment = useMutation(api.tickets.addComment);
   const updatePriority = useMutation(api.tickets.updatePriority);
@@ -55,7 +56,7 @@ export default function WorkspacePage() {
   // Drawer Tab State
   const [drawerTab, setDrawerTab] = useState<'chat' | 'audit' | 'details'>('chat'); 
   
-  const [confirmAction, setConfirmAction] = useState<{type: 'resolve' | 'reopen' | 'transfer', targetId?: string} | null>(null);
+  const [confirmAction, setConfirmAction] = useState<{type: 'resolve' | 'reopen' | 'transfer' | 'close', targetId?: string} | null>(null);
   const [isModalOpen, setIsModalOpen] = useState(false); 
   const [isTaskModalOpen, setIsTaskModalOpen] = useState(false); 
   const [isUploading, setIsUploading] = useState(false);
@@ -116,6 +117,7 @@ export default function WorkspacePage() {
     if (!confirmAction || !selectedTicket) return;
     try {
       if (confirmAction.type === 'resolve') await resolveTicket({ ticketId: selectedTicket._id });
+      if (confirmAction.type === 'close') await closeTicket({ ticketId: selectedTicket._id });
       if (confirmAction.type === 'reopen') await reopenTicket({ ticketId: selectedTicket._id });
       if (confirmAction.type === 'transfer' && confirmAction.targetId) {
         await transferTicket({ ticketId: selectedTicket._id, targetWorkspaceId: confirmAction.targetId as any });
@@ -156,13 +158,9 @@ export default function WorkspacePage() {
     }
   };
 
-  // NEW: Move Ticket Function
+  // NEW: Move Ticket Logic (Backlog <-> In Progress <-> Done)
   const moveTicket = (ticketId: any, currentStatus: string, direction: 'next' | 'prev') => {
-    // Mapping DB status to Board Columns:
-    // "open" -> Backlog
-    // "in_progress" -> In Progress
-    // "resolved" -> Done
-    const statuses = ['open', 'in_progress', 'resolved'];
+    const statuses = ['open', 'in_progress', 'done'];
     const idx = statuses.indexOf(currentStatus);
     if (idx === -1) return;
     
@@ -207,17 +205,18 @@ export default function WorkspacePage() {
     </div>
   );
 
-  const highPriority = tickets.filter(t => t.priority === 'high' && t.status === 'open').length;
-  const openCount = tickets.filter(t => t.status === 'open').length;
-  const resolvedCount = tickets.filter(t => t.status === 'resolved').length;
+  const highPriority = tickets.filter(t => t.priority === 'high' && t.status !== 'closed').length;
+  const openCount = tickets.filter(t => t.status === 'open' || t.status === 'in_progress').length;
+  const resolvedCount = tickets.filter(t => t.status === 'done' || t.status === 'resolved').length;
 
+  // Updated Ticket Column to support moving
   const TicketColumn = ({ status, label }: { status: string, label: string }) => {
     const columnTickets = tickets.filter(t => t.status === status);
     return (
       <div className="flex-1 min-w-[280px] md:min-w-[300px] flex flex-col gap-4">
         <div className="flex items-center justify-between px-2">
           <h3 className="text-xs font-bold uppercase tracking-wider text-muted flex items-center gap-2">
-            <span className={`w-2 h-2 rounded-full ${status === 'open' ? 'bg-blue-500' : status === 'resolved' ? 'bg-green-500' : 'bg-orange-500'}`} />
+            <span className={`w-2 h-2 rounded-full ${status === 'open' ? 'bg-orange-500' : status === 'done' ? 'bg-green-500' : 'bg-blue-500'}`} />
             {label} ({columnTickets.length})
           </h3>
         </div>
@@ -237,26 +236,23 @@ export default function WorkspacePage() {
               </div>
               <h4 className="text-sm font-bold text-foreground mb-2 line-clamp-2">{ticket.title}</h4>
               <div className="flex items-center justify-between mt-3 pt-3 border-t border-border/50">
-                {/* NEW: Admin Move Arrows */}
+                {/* ADMIN MOVE LEFT */}
                 {hasAdminRights ? (
                     <button onClick={(e) => { e.stopPropagation(); moveTicket(ticket._id, ticket.status, 'prev'); }} disabled={ticket.status === 'open'} className="p-1.5 rounded hover:bg-foreground/5 disabled:opacity-30 disabled:cursor-not-allowed">
                         <ChevronLeft className="w-4 h-4 text-muted" />
                     </button>
-                ) : (
-                    <div /> // Spacer
-                )}
+                ) : <div />}
 
                 <div className="w-5 h-5 rounded-full bg-foreground/10 flex items-center justify-center text-[9px] font-bold">
                     {ticket.assignee?.name?.[0] || "?"}
                 </div>
 
+                {/* ADMIN MOVE RIGHT */}
                 {hasAdminRights ? (
-                    <button onClick={(e) => { e.stopPropagation(); moveTicket(ticket._id, ticket.status, 'next'); }} disabled={ticket.status === 'resolved'} className="p-1.5 rounded hover:bg-foreground/5 disabled:opacity-30 disabled:cursor-not-allowed">
+                    <button onClick={(e) => { e.stopPropagation(); moveTicket(ticket._id, ticket.status, 'next'); }} disabled={ticket.status === 'done'} className="p-1.5 rounded hover:bg-foreground/5 disabled:opacity-30 disabled:cursor-not-allowed">
                         <ChevronRight className="w-4 h-4 text-muted" />
                     </button>
-                ) : (
-                    <div />
-                )}
+                ) : <div />}
               </div>
             </div>
           ))}
@@ -357,9 +353,9 @@ export default function WorkspacePage() {
                 </div>
             </section>
 
-            {/* LIST */}
+            {/* LIST - Filtered closed tickets */}
             <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                {tickets.map((ticket) => (
+                {tickets.filter(t => t.status !== 'closed').map((ticket) => (
                 <div 
                     key={ticket._id} 
                     onClick={() => setSelectedTicketId(ticket._id)}
@@ -384,9 +380,9 @@ export default function WorkspacePage() {
                         <User className="w-3 h-3" /> {ticket.assignee ? ticket.assignee.name.split(' ')[0] : 'Unassigned'}
                     </div>
                     <span className={`text-[10px] font-bold uppercase tracking-wider ${
-                        ticket.status === 'resolved' ? 'text-green-600' : 'text-accent'
+                        ticket.status === 'done' ? 'text-green-600' : 'text-accent'
                     }`}>
-                        {ticket.status}
+                        {ticket.status.replace('_', ' ')}
                     </span>
                     </div>
                 </div>
@@ -395,12 +391,12 @@ export default function WorkspacePage() {
         </div>
       )}
 
-      {/* BOARD TAB (Tickets) */}
+      {/* BOARD TAB (Tickets) - Updated Columns */}
       {activeTab === 'board' && (
         <div className="flex gap-6 overflow-x-auto pb-6 animate-in fade-in custom-scrollbar">
             <TicketColumn status="open" label="Backlog" />
             <TicketColumn status="in_progress" label="In Progress" />
-            <TicketColumn status="resolved" label="Done" />
+            <TicketColumn status="done" label="Done" />
         </div>
       )}
 
@@ -506,7 +502,9 @@ export default function WorkspacePage() {
                 <div className="min-w-0">
                   <div className="flex items-center gap-2 mb-1">
                     <span className="text-[10px] font-bold uppercase tracking-wider text-muted hidden md:inline">ID: {selectedTicket._id.substring(0,8)}</span>
-                    <span className={`text-[10px] font-bold uppercase tracking-wider px-2 py-0.5 rounded-full ${selectedTicket.status === 'open' ? 'bg-accent/10 text-accent' : 'bg-green-500/10 text-green-600'}`}>{selectedTicket.status}</span>
+                    <span className={`text-[10px] font-bold uppercase tracking-wider px-2 py-0.5 rounded-full ${selectedTicket.status === 'open' ? 'bg-accent/10 text-accent' : selectedTicket.status === 'closed' ? 'bg-red-500/10 text-red-500' : 'bg-green-500/10 text-green-600'}`}>
+                        {selectedTicket.status.replace('_', ' ')}
+                    </span>
                   </div>
                   <h2 className="text-lg md:text-xl font-bold text-foreground truncate w-full tracking-tight leading-tight">{selectedTicket.title}</h2>
                 </div>
@@ -591,8 +589,8 @@ export default function WorkspacePage() {
                             <h3 className="text-xs font-bold text-muted uppercase tracking-wider flex items-center gap-2"><AlertCircle className="w-3.5 h-3.5" /> Controls</h3>
                             {hasAdminRights ? (
                                 <>
-                                {selectedTicket.status === 'open' ? (
-                                    <button onClick={() => setConfirmAction({type: 'resolve'})} className="w-full py-3 bg-green-500/10 text-green-600 border border-green-500/20 rounded-xl text-xs font-bold uppercase hover:bg-green-500 hover:text-white transition-all">Mark Resolved</button>
+                                {selectedTicket.status !== 'closed' ? (
+                                    <button onClick={() => setConfirmAction({type: 'close'})} className="w-full py-3 bg-green-500/10 text-green-600 border border-green-500/20 rounded-xl text-xs font-bold uppercase hover:bg-green-500 hover:text-white transition-all">Close & Archive</button>
                                 ) : (
                                     <button onClick={() => setConfirmAction({type: 'reopen'})} className="w-full py-3 bg-foreground/5 text-foreground border border-border rounded-xl text-xs font-bold uppercase hover:bg-foreground/10 transition-all flex items-center justify-center gap-2"><RefreshCw className="w-3 h-3" /> Reopen</button>
                                 )}
@@ -659,8 +657,10 @@ export default function WorkspacePage() {
                   <h3 className="text-xs font-bold text-muted uppercase tracking-wider flex items-center gap-2"><AlertCircle className="w-3.5 h-3.5" /> Controls</h3>
                   {hasAdminRights ? (
                     <>
-                      {selectedTicket.status === 'open' ? (
-                        <button onClick={() => setConfirmAction({type: 'resolve'})} className="w-full py-2 bg-green-500/10 text-green-600 border border-green-500/20 rounded-xl text-xs font-bold uppercase hover:bg-green-500 hover:text-white transition-all">Mark Resolved</button>
+                      {selectedTicket.status !== 'closed' ? (
+                        <button onClick={() => setConfirmAction({type: 'close'})} className="w-full py-2 bg-green-500/10 text-green-600 border border-green-500/20 rounded-xl text-xs font-bold uppercase hover:bg-green-500 hover:text-white transition-all flex items-center justify-center gap-2">
+                            <StopCircle className="w-4 h-4" /> Close & Archive
+                        </button>
                       ) : (
                         <button onClick={() => setConfirmAction({type: 'reopen'})} className="w-full py-2 bg-foreground/5 text-foreground border border-border rounded-xl text-xs font-bold uppercase hover:bg-foreground/10 transition-all flex items-center justify-center gap-2"><RefreshCw className="w-3 h-3" /> Reopen</button>
                       )}
