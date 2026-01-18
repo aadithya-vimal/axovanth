@@ -207,7 +207,8 @@ export default function WorkspacePage() {
 
   const highPriority = tickets.filter(t => t.priority === 'high' && t.status !== 'closed').length;
   const openCount = tickets.filter(t => t.status === 'open' || t.status === 'in_progress').length;
-  const resolvedCount = tickets.filter(t => t.status === 'done' || t.status === 'resolved').length;
+  // FIX: 'resolved' is not a valid status in schema. Changed to 'closed' which is valid.
+  const resolvedCount = tickets.filter(t => t.status === 'done' || t.status === 'closed').length;
 
   // Updated Ticket Column to support moving
   const TicketColumn = ({ status, label }: { status: string, label: string }) => {
