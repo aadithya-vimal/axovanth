@@ -7,9 +7,21 @@ import { useParams } from "next/navigation";
 import { 
   Ticket, Hash, Loader2, ArrowRightLeft, X, Send, AlertCircle, ChevronRight, 
   User, RefreshCw, Check, Flag, Clock, MessageSquare, AlertTriangle, Plus,
-  Layout, List, ChevronLeft, Trash2, GripVertical, Building, Calendar, Edit3, History
+  Layout, List, ChevronLeft, Trash2, GripVertical, Building, Calendar, Edit3, History,
+  // IMPORT ICON SET
+  Terminal, TrendingUp, BadgeDollarSign, Palette, Scale, Users, Settings2,
+  LifeBuoy, Rocket, Database, Briefcase, Bug, ShieldCheck, Box, FolderKanban,
+  Megaphone, Headphones, Globe, Cloud, Map, BarChart3, Layers
 } from "lucide-react";
 import { useUser } from "@clerk/nextjs";
+
+// --- ICON MAP REGISTRY ---
+const WorkspaceIconMap: Record<string, any> = {
+  Terminal, TrendingUp, BadgeDollarSign, Palette, Scale, Users, 
+  Settings2, LifeBuoy, Rocket, Database, Briefcase, Bug, ShieldCheck, 
+  Box, FolderKanban, Megaphone, Headphones, Globe, Cloud, Map, 
+  BarChart3, Layers
+};
 
 interface AdminStats {
   isOverallAdmin: boolean;
@@ -105,9 +117,12 @@ export default function OperationalWorkflow() {
     return adminStats.adminWorkspaceIds.includes(wsId);
   };
 
-  // ------------------------------------------------------------------
-  // HANDLERS
-  // ------------------------------------------------------------------
+  // Helper to render icon
+  const getWsIcon = (iconName: string) => {
+    const Icon = WorkspaceIconMap[iconName] || Layers;
+    return <Icon className="w-5 h-5 text-foreground" />;
+  };
+
   const handleTicketComment = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!commentText.trim() || !selectedTicket) return;
@@ -178,7 +193,6 @@ export default function OperationalWorkflow() {
     const statuses = ['backlog', 'todo', 'in_progress', 'done'];
     const idx = statuses.indexOf(currentStatus);
     if (idx === -1) return;
-    
     const newIdx = direction === 'next' ? idx + 1 : idx - 1;
     if (newIdx >= 0 && newIdx < statuses.length) {
         updateKanbanStatus({ taskId, status: statuses[newIdx] as any });
@@ -230,39 +244,12 @@ export default function OperationalWorkflow() {
               <h4 className="text-sm font-bold text-foreground mb-3 leading-snug">{task.title}</h4>
               
               <div className="flex items-center justify-between border-t border-border pt-3">
-                 <button 
-                    onClick={(e) => { e.stopPropagation(); moveTask(task._id, task.status, 'prev'); }} 
-                    disabled={task.status === 'backlog'}
-                    className="p-1.5 rounded hover:bg-foreground/5 disabled:opacity-30 disabled:cursor-not-allowed"
-                 >
-                    <ChevronLeft className="w-4 h-4 text-muted" />
-                 </button>
-                 
-                 {task.assignee ? (
-                     <div className="flex items-center gap-1.5">
-                        <div className="w-4 h-4 bg-accent/10 rounded-full flex items-center justify-center text-[8px] font-bold text-accent">
-                            {task.assignee.name?.[0]}
-                        </div>
-                     </div>
-                 ) : (
-                    <User className="w-3 h-3 text-muted/30" />
-                 )}
-
-                 <button 
-                    onClick={(e) => { e.stopPropagation(); moveTask(task._id, task.status, 'next'); }} 
-                    disabled={task.status === 'done'}
-                    className="p-1.5 rounded hover:bg-foreground/5 disabled:opacity-30 disabled:cursor-not-allowed"
-                 >
-                    <ChevronRight className="w-4 h-4 text-muted" />
-                 </button>
+                 <button onClick={(e) => { e.stopPropagation(); moveTask(task._id, task.status, 'prev'); }} disabled={task.status === 'backlog'} className="p-1.5 rounded hover:bg-foreground/5 disabled:opacity-30"><ChevronLeft className="w-4 h-4 text-muted" /></button>
+                 {task.assignee ? <div className="w-4 h-4 bg-accent/10 rounded-full flex items-center justify-center text-[8px] font-bold text-accent">{task.assignee.name?.[0]}</div> : <User className="w-3 h-3 text-muted/30" />}
+                 <button onClick={(e) => { e.stopPropagation(); moveTask(task._id, task.status, 'next'); }} disabled={task.status === 'done'} className="p-1.5 rounded hover:bg-foreground/5 disabled:opacity-30"><ChevronRight className="w-4 h-4 text-muted" /></button>
               </div>
             </div>
           ))}
-          {tasks.length === 0 && (
-            <div className="h-24 flex items-center justify-center border-2 border-dashed border-border/50 rounded-xl">
-                <span className="text-[10px] font-bold text-muted/50 uppercase">Empty</span>
-            </div>
-          )}
         </div>
       </div>
     );
@@ -271,7 +258,7 @@ export default function OperationalWorkflow() {
   return (
     <div className="max-w-7xl mx-auto space-y-8 pb-32 animate-in fade-in duration-700 font-sans h-full">
       
-      {/* GLOBAL HEADER */}
+      {/* HEADER */}
       <header className="flex flex-col md:flex-row md:items-end justify-between border-b border-border pb-8 gap-6">
         <div className="space-y-2">
           <div className="flex items-center gap-2 text-accent font-bold text-[10px] uppercase tracking-wider mb-2">
@@ -282,11 +269,10 @@ export default function OperationalWorkflow() {
         </div>
         
         <div className="flex flex-col md:flex-row items-center gap-3 w-full md:w-auto">
-          {/* KANBAN DEPARTMENT FILTER */}
           {viewMode === 'board' && (
               <div className="relative w-full md:w-48">
                  <select 
-                    className="w-full bg-background text-foreground border border-border rounded-xl px-4 py-2.5 text-xs font-bold uppercase tracking-wider cursor-pointer appearance-none hover:border-accent/50 focus:border-accent focus:ring-1 focus:ring-accent outline-none"
+                    className="w-full bg-background text-foreground border border-border rounded-xl px-4 py-2.5 text-xs font-bold uppercase tracking-wider cursor-pointer appearance-none hover:border-accent/50 focus:border-accent outline-none"
                     value={selectedKanbanWs}
                     onChange={(e) => setSelectedKanbanWs(e.target.value)}
                  >
@@ -298,7 +284,6 @@ export default function OperationalWorkflow() {
               </div>
           )}
 
-          {/* VIEW TOGGLES */}
           <div className="flex bg-foreground/5 p-1 rounded-xl w-full md:w-auto">
             <button 
               onClick={() => setViewMode('list')}
@@ -314,7 +299,6 @@ export default function OperationalWorkflow() {
             </button>
           </div>
 
-          {/* CREATE BUTTON */}
           <button 
             onClick={() => viewMode === 'list' ? setIsTicketModalOpen(true) : setIsTaskModalOpen(true)}
             className="apple-button shadow-lg shadow-accent/20 w-full md:w-auto justify-center"
@@ -343,8 +327,9 @@ export default function OperationalWorkflow() {
                 className="glass-panel p-4 md:p-6 rounded-2xl border border-border hover:border-accent/50 hover:bg-accent/[0.02] transition-all cursor-pointer group flex flex-col md:flex-row md:items-center justify-between gap-4"
               >
                 <div className="flex items-start md:items-center gap-4 md:gap-6">
-                  <div className={`w-10 h-10 md:w-12 md:h-12 rounded-xl flex items-center justify-center text-lg md:text-xl bg-foreground/5 border border-border shrink-0`}>
-                    {ticket.workspace?.emoji || "📂"}
+                  {/* FIX: Render Icon Component */}
+                  <div className={`w-10 h-10 md:w-12 md:h-12 rounded-xl flex items-center justify-center bg-foreground/5 border border-border shrink-0`}>
+                    {getWsIcon(ticket.workspace?.emoji || "Layers")}
                   </div>
                   <div>
                     <h3 className="font-semibold text-foreground tracking-tight text-sm md:text-base line-clamp-1">{ticket.title}</h3>
@@ -388,182 +373,6 @@ export default function OperationalWorkflow() {
         </div>
       )}
 
-      {/* ------------------------------------------------------------------ */}
-      {/* MODALS & DRAWERS */}
-      {/* ------------------------------------------------------------------ */}
-
-      {/* 1. KANBAN TASK DRAWER (Edit + Audit + Chat) */}
-      {selectedTask && (
-          <div className="fixed inset-0 z-[160] flex items-center justify-end bg-black/40 backdrop-blur-md p-0 md:p-4 transition-all">
-             <div className="glass-panel w-full max-w-lg h-full md:rounded-[32px] shadow-2xl animate-in slide-in-from-right duration-300 border-border bg-background flex flex-col overflow-hidden">
-                <div className="p-6 border-b border-border bg-background flex justify-between items-center shrink-0">
-                    <div className="flex items-center gap-3">
-                        <div className={`w-3 h-3 rounded-full ${selectedTask.status === 'done' ? 'bg-green-500' : 'bg-blue-500'}`} />
-                        <h3 className="font-bold text-foreground text-lg">Task Details</h3>
-                    </div>
-                    <button onClick={() => setSelectedTaskId(null)} className="p-2 hover:bg-foreground/5 rounded-full text-muted hover:text-foreground">
-                        <X className="w-5 h-5" />
-                    </button>
-                </div>
-
-                <div className="flex items-center border-b border-border px-6 shrink-0 bg-background/50">
-                  <button onClick={() => setKanbanTab('chat')} className={`py-4 text-xs font-bold uppercase tracking-wider border-b-2 px-4 transition-all ${kanbanTab === 'chat' ? 'border-accent text-foreground' : 'border-transparent text-muted hover:text-foreground'}`}>Discussion</button>
-                  <button onClick={() => setKanbanTab('audit')} className={`py-4 text-xs font-bold uppercase tracking-wider border-b-2 px-4 transition-all ${kanbanTab === 'audit' ? 'border-accent text-foreground' : 'border-transparent text-muted'}`}>Audit Log</button>
-                </div>
-
-                <div className="flex-1 overflow-y-auto p-6 space-y-6 custom-scrollbar">
-                    {/* CORE FIELDS */}
-                    <div className="space-y-6">
-                        <div className="space-y-2">
-                            <label className="text-[10px] font-bold text-muted uppercase tracking-wider">Title</label>
-                            <input 
-                                className="input-field" 
-                                value={selectedTask.title} 
-                                onChange={(e) => updateKanbanDetails({ taskId: selectedTask._id, title: e.target.value })} 
-                            />
-                        </div>
-
-                        <div className="space-y-2">
-                            <label className="text-[10px] font-bold text-muted uppercase tracking-wider">Description</label>
-                            <textarea 
-                                className="input-field min-h-[100px] resize-none leading-relaxed" 
-                                value={selectedTask.description || ""} 
-                                onChange={(e) => updateKanbanDetails({ taskId: selectedTask._id, description: e.target.value })} 
-                                placeholder="Add task description..."
-                            />
-                        </div>
-
-                        <div className="grid grid-cols-2 gap-4">
-                            <div className="space-y-2">
-                                <label className="text-[10px] font-bold text-muted uppercase tracking-wider flex items-center gap-2"><Flag className="w-3 h-3" /> Priority</label>
-                                <select 
-                                    className="input-field text-xs bg-background text-foreground" 
-                                    value={selectedTask.priority}
-                                    onChange={(e) => updateKanbanDetails({ taskId: selectedTask._id, priority: e.target.value as any })}
-                                >
-                                    <option value="low" className="bg-background text-foreground">Low</option>
-                                    <option value="medium" className="bg-background text-foreground">Medium</option>
-                                    <option value="high" className="bg-background text-foreground">High</option>
-                                </select>
-                            </div>
-
-                            <div className="space-y-2">
-                                <label className="text-[10px] font-bold text-muted uppercase tracking-wider flex items-center gap-2"><User className="w-3 h-3" /> Assignee</label>
-                                <select 
-                                    className="input-field text-xs bg-background text-foreground"
-                                    value={selectedTask.assigneeId || ""}
-                                    onChange={(e) => updateKanbanDetails({ taskId: selectedTask._id, assigneeId: e.target.value ? e.target.value as any : undefined })}
-                                >
-                                    <option value="" className="bg-background text-foreground">Unassigned</option>
-                                    {members?.map((m: any) => (
-                                        <option key={m.user._id} value={m.user._id} className="bg-background text-foreground">{m.user.name}</option>
-                                    ))}
-                                </select>
-                            </div>
-                        </div>
-                    </div>
-
-                    {/* DISCUSSION TAB */}
-                    {kanbanTab === 'chat' && (
-                        <div className="pt-6 border-t border-border space-y-4">
-                            <h4 className="text-xs font-bold text-muted uppercase tracking-wider">Comments</h4>
-                            <div className="space-y-3">
-                                {kanbanComments?.map((c: any) => {
-                                    const isMe = c.author?.clerkId === clerkUser?.id;
-                                    return (
-                                        <div key={c._id} className={`flex gap-3 ${isMe ? "flex-row-reverse" : "flex-row"}`}>
-                                            <div className="w-8 h-8 rounded-lg bg-foreground/5 flex items-center justify-center text-xs font-bold text-muted shrink-0">
-                                                {c.author?.name?.[0]}
-                                            </div>
-                                            <div className={`max-w-[85%] ${isMe ? "items-end" : "items-start"} flex flex-col gap-1`}>
-                                                <div className={`px-3 py-2 rounded-2xl text-xs font-medium leading-relaxed border ${isMe ? "bg-accent/10 text-accent border-accent/20 rounded-tr-sm" : "bg-foreground/5 text-foreground border-border rounded-tl-sm"}`}>
-                                                    {c.content}
-                                                </div>
-                                                <span className="text-[9px] text-muted opacity-60">{new Date(c._creationTime).toLocaleTimeString([],{hour:'2-digit', minute:'2-digit'})}</span>
-                                            </div>
-                                        </div>
-                                    )
-                                })}
-                                <div ref={kanbanScrollRef} />
-                            </div>
-                            <form onSubmit={handleKanbanComment} className="flex gap-2 pt-2">
-                                <input placeholder="Add comment..." className="input-field py-2 text-xs" value={kanbanComment} onChange={(e) => setKanbanComment(e.target.value)} />
-                                <button type="submit" className="p-2 bg-accent hover:bg-accent/90 text-white rounded-xl shadow-lg"><Send className="w-3.5 h-3.5" /></button>
-                            </form>
-                        </div>
-                    )}
-
-                    {/* AUDIT LOG TAB */}
-                    {kanbanTab === 'audit' && (
-                        <div className="pt-6 border-t border-border space-y-4">
-                            <h4 className="text-xs font-bold text-muted uppercase tracking-wider flex items-center gap-2"><History className="w-3.5 h-3.5" /> Activity Log</h4>
-                            <div className="space-y-4">
-                                {kanbanEvents?.map((e: any, idx: number) => (
-                                    <div key={idx} className="flex gap-3 relative pb-4 border-l border-border/50 ml-2 pl-4 last:border-0 last:pb-0">
-                                        <div className="absolute -left-[5px] top-0 w-2.5 h-2.5 rounded-full bg-border border-2 border-background" />
-                                        <div>
-                                            <p className="text-xs font-medium text-foreground">{e.metadata}</p>
-                                            <p className="text-[10px] text-muted mt-0.5">{e.actor?.name} • {new Date(e._creationTime).toLocaleString()}</p>
-                                        </div>
-                                    </div>
-                                ))}
-                            </div>
-                        </div>
-                    )}
-                </div>
-
-                <div className="p-6 border-t border-border shrink-0 bg-background">
-                    <button 
-                        onClick={() => { deleteKanbanTask({ taskId: selectedTask._id }); setSelectedTaskId(null); }}
-                        className="w-full py-3 bg-red-500/10 text-red-500 hover:bg-red-500 hover:text-white rounded-xl text-xs font-bold uppercase transition-all flex items-center justify-center gap-2"
-                    >
-                        <Trash2 className="w-4 h-4" /> Delete Task
-                    </button>
-                </div>
-             </div>
-          </div>
-      )}
-
-      {/* 2. CREATE KANBAN TASK MODAL - UPDATED */}
-      {isTaskModalOpen && (
-        <div className="fixed inset-0 z-[200] flex items-center justify-center bg-black/60 backdrop-blur-md p-4 animate-in fade-in">
-            <div className="glass-panel max-w-sm w-full p-6 rounded-3xl shadow-2xl border-border bg-background animate-in zoom-in-95">
-                <div className="flex justify-between items-center mb-6">
-                    <h3 className="font-bold text-foreground">New Task</h3>
-                    <button onClick={() => setIsTaskModalOpen(false)}><X className="w-5 h-5 text-muted" /></button>
-                </div>
-                <div className="space-y-4">
-                    <div>
-                        <label className="text-[10px] font-bold text-muted uppercase tracking-wider">Task Title</label>
-                        <input className="input-field mt-1" autoFocus value={newTask.title} onChange={(e) => setNewTask({...newTask, title: e.target.value})} placeholder="What needs to be done?" />
-                    </div>
-                    <div>
-                        <label className="text-[10px] font-bold text-muted uppercase tracking-wider">Description</label>
-                        <textarea className="input-field mt-1 h-20 resize-none" value={newTask.description} onChange={(e) => setNewTask({...newTask, description: e.target.value})} placeholder="Brief details..." />
-                    </div>
-                    <div className="grid grid-cols-2 gap-3">
-                        <div>
-                             <label className="text-[10px] font-bold text-muted uppercase tracking-wider">Assignee</label>
-                             <select className="input-field mt-1 text-xs bg-background text-foreground" value={newTask.assigneeId} onChange={(e) => setNewTask({...newTask, assigneeId: e.target.value})}>
-                                <option value="" className="bg-background text-foreground">Unassigned</option>
-                                {members?.map((m: any) => (<option key={m.user._id} value={m.user._id} className="bg-background text-foreground">{m.user.name}</option>))}
-                             </select>
-                        </div>
-                        <div>
-                             <label className="text-[10px] font-bold text-muted uppercase tracking-wider">Priority</label>
-                             <select className="input-field mt-1 text-xs bg-background text-foreground" value={newTask.priority} onChange={(e) => setNewTask({...newTask, priority: e.target.value as any})}>
-                                <option value="low" className="bg-background text-foreground">Low</option>
-                                <option value="medium" className="bg-background text-foreground">Medium</option>
-                                <option value="high" className="bg-background text-foreground">High</option>
-                             </select>
-                        </div>
-                    </div>
-                    <button onClick={handleCreateTask} className="apple-button w-full justify-center mt-2">Create Task</button>
-                </div>
-            </div>
-        </div>
-      )}
-
       {/* 3. CREATE TICKET MODAL */}
       {isTicketModalOpen && (
         <div className="fixed inset-0 z-[200] flex items-center justify-center bg-black/60 backdrop-blur-xl p-4 animate-in fade-in duration-200">
@@ -589,7 +398,7 @@ export default function OperationalWorkflow() {
                     </select>
                 </div>
               </div>
-              <div className="space-y-2"><label className="text-xs font-bold text-muted uppercase tracking-wider ml-1">Title</label><input placeholder="E.g. Update Security Protocol" className="input-field" value={newTicket.title} onChange={(e) => setNewTicket({...newTicket, title: e.target.value})} /></div>
+              <div className="space-y-2"><label className="text-xs font-bold text-muted uppercase tracking-wider ml-1">Title</label><input placeholder="E.g. Update Security Protocol" className="input-field" value={newTicket.title} onChange={(e) => setNewTicket({...newTicket, title: e.target.value})} autoFocus /></div>
               <div className="space-y-2"><label className="text-xs font-bold text-muted uppercase tracking-wider ml-1">Type</label><div className="flex gap-2">{['task', 'bug', 'feature'].map((t) => (<button key={t} onClick={() => setNewTicket({...newTicket, type: t as any})} className={`flex-1 py-2 rounded-xl text-xs font-bold uppercase tracking-wider border transition-all ${newTicket.type === t ? 'bg-accent text-white border-accent' : 'bg-background text-muted border-border hover:border-accent/50'}`}>{t}</button>))}</div></div>
               <div className="space-y-2"><label className="text-xs font-bold text-muted uppercase tracking-wider ml-1">Description</label><textarea placeholder="Detailed requirements..." className="input-field h-32 resize-none leading-relaxed" value={newTicket.description} onChange={(e) => setNewTicket({...newTicket, description: e.target.value})} /></div>
               <div className="space-y-2"><label className="text-xs font-bold text-muted uppercase tracking-wider ml-1">Priority Level</label><div className="flex gap-2">{['low', 'medium', 'high'].map((p) => (<button key={p} onClick={() => setNewTicket({...newTicket, priority: p as any})} className={`flex-1 py-2 rounded-xl text-xs font-bold uppercase tracking-wider border transition-all ${newTicket.priority === p ? 'bg-accent text-white border-accent' : 'bg-background text-muted border-border hover:border-accent/50'}`}>{p}</button>))}</div></div>
@@ -599,11 +408,64 @@ export default function OperationalWorkflow() {
         </div>
       )}
 
-      {/* TICKET DRAWER (Preserved) */}
+      {/* 4. CREATE TASK MODAL */}
+      {isTaskModalOpen && (
+        <div className="fixed inset-0 z-[200] flex items-center justify-center bg-black/60 backdrop-blur-xl p-4 animate-in fade-in duration-200">
+             <div className="glass-panel max-w-md w-full p-8 rounded-[40px] shadow-2xl border-border bg-background relative animate-in zoom-in-95 duration-200">
+                <button onClick={() => setIsTaskModalOpen(false)} className="absolute top-6 right-6 p-2 bg-foreground/5 rounded-full hover:bg-foreground/10 transition-colors">
+                    <X className="w-4 h-4 text-foreground" />
+                </button>
+                <div className="mb-6">
+                    <h2 className="text-2xl font-bold text-foreground tracking-tight mb-1">New Task</h2>
+                    <p className="text-muted text-sm font-normal">Add a card to the Kanban board.</p>
+                </div>
+                
+                <div className="space-y-4">
+                    <div>
+                        <label className="text-[10px] font-bold text-muted uppercase tracking-wider">Title</label>
+                        <input 
+                            className="input-field mt-1" 
+                            placeholder="e.g. Design Homepage"
+                            value={newTask.title} 
+                            onChange={(e) => setNewTask({...newTask, title: e.target.value})} 
+                            autoFocus 
+                        />
+                    </div>
+                    <div>
+                         <label className="text-[10px] font-bold text-muted uppercase tracking-wider">Assignee</label>
+                         <select 
+                            className="input-field mt-1 text-xs bg-background text-foreground"
+                            value={newTask.assigneeId} 
+                            onChange={(e) => setNewTask({...newTask, assigneeId: e.target.value})}
+                         >
+                            <option value="">Unassigned</option>
+                            {members?.map((m: any) => (<option key={m.user._id} value={m.user._id}>{m.user.name}</option>))}
+                         </select>
+                    </div>
+                    <div>
+                         <label className="text-[10px] font-bold text-muted uppercase tracking-wider">Priority</label>
+                         <select 
+                            className="input-field mt-1 text-xs bg-background text-foreground" 
+                            value={newTask.priority} 
+                            onChange={(e) => setNewTask({...newTask, priority: e.target.value as any})}
+                         >
+                            <option value="low">Low</option>
+                            <option value="medium">Medium</option>
+                            <option value="high">High</option>
+                         </select>
+                    </div>
+
+                    <button onClick={handleCreateTask} className="apple-button w-full justify-center mt-2">Create Task</button>
+                </div>
+            </div>
+        </div>
+      )}
+
+      {/* TICKET DRAWER */}
       {selectedTicket && (
         <div className="fixed inset-0 z-[150] flex items-center justify-end bg-black/40 backdrop-blur-md p-0 md:p-4 transition-all">
           <div className="glass-panel w-full max-w-5xl h-full md:rounded-[32px] shadow-2xl animate-in slide-in-from-right duration-500 overflow-hidden flex flex-col border-border bg-background">
-             {/* ... Ticket Drawer (Content Preserved) ... */}
+             
              {/* Confirm Action Modal */}
             {confirmAction && (
               <div className="absolute inset-0 z-[200] bg-background/80 backdrop-blur-sm flex items-center justify-center p-4">
@@ -649,7 +511,7 @@ export default function OperationalWorkflow() {
                 </div>
 
                 <div className="flex-1 overflow-y-auto p-4 md:p-8 custom-scrollbar relative">
-                  {tab === 'chat' ? (
+                  {tab === 'chat' && (
                     <div className="space-y-6">
                       <div className="p-4 md:p-6 bg-foreground/[0.02] rounded-2xl border border-border">
                         <p className="text-foreground text-sm leading-relaxed whitespace-pre-wrap">{selectedTicket.description}</p>
@@ -676,15 +538,15 @@ export default function OperationalWorkflow() {
                         <div ref={scrollRef} />
                       </div>
                     </div>
-                  ) : (
+                  )}
+                  
+                  {tab === 'audit' && (
                     <div className="space-y-4">
                       {ticketEvents?.map((e, idx) => (
                         <div key={idx} className="flex gap-4 p-4 rounded-xl bg-foreground/[0.02] border border-border">
                           <div className="mt-1">
                             {e.type === 'created' && <Plus className="w-4 h-4 text-blue-500" />}
                             {e.type === 'status_change' && <Check className="w-4 h-4 text-green-500" />}
-                            {e.type === 'priority_update' && <Flag className="w-4 h-4 text-orange-500" />}
-                            {e.type === 'transferred' && <ArrowRightLeft className="w-4 h-4 text-purple-500" />}
                             {e.type.includes('update') && <RefreshCw className="w-4 h-4 text-muted" />}
                           </div>
                           <div>
@@ -766,6 +628,74 @@ export default function OperationalWorkflow() {
             </div>
           </div>
         </div>
+      )}
+
+      {/* KANBAN TASK DRAWER */}
+      {selectedTask && (
+          <div className="fixed inset-0 z-[150] flex items-center justify-end bg-black/40 backdrop-blur-md p-0 md:p-4 transition-all">
+              <div className="glass-panel w-full max-w-2xl h-full md:rounded-[32px] shadow-2xl animate-in slide-in-from-right duration-500 overflow-hidden flex flex-col border-border bg-background">
+                  <header className="px-6 py-5 border-b border-border bg-background/50 backdrop-blur-xl flex items-center justify-between shrink-0">
+                      <h2 className="text-xl font-bold">{selectedTask.title}</h2>
+                      <button onClick={() => setSelectedTaskId(null)} className="p-2 hover:bg-foreground/5 rounded-full"><X className="w-5 h-5" /></button>
+                  </header>
+                  
+                  <div className="flex-1 overflow-y-auto p-6 custom-scrollbar">
+                       {/* Task Meta */}
+                       <div className="grid grid-cols-2 gap-4 mb-6">
+                           <div className="p-4 bg-foreground/5 rounded-2xl">
+                               <p className="text-[10px] font-bold text-muted uppercase tracking-wider mb-1">Status</p>
+                               <select 
+                                  className="w-full bg-transparent font-bold text-sm outline-none"
+                                  value={selectedTask.status}
+                                  onChange={(e) => updateKanbanStatus({ taskId: selectedTask._id, status: e.target.value as any })}
+                               >
+                                   <option value="backlog">Backlog</option>
+                                   <option value="todo">To Do</option>
+                                   <option value="in_progress">In Progress</option>
+                                   <option value="done">Done</option>
+                               </select>
+                           </div>
+                           <div className="p-4 bg-foreground/5 rounded-2xl">
+                               <p className="text-[10px] font-bold text-muted uppercase tracking-wider mb-1">Priority</p>
+                               <span className={`text-sm font-bold uppercase ${selectedTask.priority === 'high' ? 'text-red-500' : 'text-blue-500'}`}>{selectedTask.priority}</span>
+                           </div>
+                       </div>
+                       
+                       <h3 className="text-xs font-bold text-muted uppercase tracking-wider mb-2">Description</h3>
+                       <p className="text-sm leading-relaxed mb-8">{selectedTask.description || "No description provided."}</p>
+
+                       <h3 className="text-xs font-bold text-muted uppercase tracking-wider mb-4">Activity</h3>
+                       <div className="space-y-4 mb-20">
+                           {kanbanComments?.map((c) => (
+                               <div key={c._id} className="flex gap-3">
+                                   <div className="w-8 h-8 rounded-full bg-accent/10 flex items-center justify-center text-xs font-bold text-accent">
+                                       {c.author?.name?.[0]}
+                                   </div>
+                                   <div className="bg-foreground/5 p-3 rounded-xl rounded-tl-none">
+                                       <p className="text-xs font-bold mb-1">{c.author?.name}</p>
+                                       <p className="text-sm">{c.content}</p>
+                                   </div>
+                               </div>
+                           ))}
+                           <div ref={kanbanScrollRef} />
+                       </div>
+                  </div>
+
+                  <form onSubmit={handleKanbanComment} className="p-4 border-t border-border bg-background/50 backdrop-blur-md shrink-0">
+                      <div className="flex gap-2">
+                          <input 
+                            placeholder="Add comment..." 
+                            className="input-field py-2.5 text-sm" 
+                            value={kanbanComment} 
+                            onChange={(e) => setKanbanComment(e.target.value)} 
+                          />
+                          <button type="submit" className="p-3 bg-accent hover:bg-accent/90 text-white rounded-xl shadow-lg shadow-accent/20">
+                              <Send className="w-4 h-4" />
+                          </button>
+                      </div>
+                  </form>
+              </div>
+          </div>
       )}
     </div>
   );

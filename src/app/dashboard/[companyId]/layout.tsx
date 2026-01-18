@@ -11,7 +11,8 @@ import {
   Menu, X, Sun, Moon, Settings, LogOut, Lock, ArrowRight, UserCog,
   // IMPORT NEW ICONS FOR WORKSPACES
   Terminal, TrendingUp, BadgeDollarSign, Palette, Scale, Users, Settings2,
-  LifeBuoy, Rocket, Database, Briefcase, Bug, ShieldCheck, Box, FolderKanban
+  LifeBuoy, Rocket, Database, Briefcase, Bug, ShieldCheck, Box, FolderKanban,
+  Activity // IMPORT FOR PULSE
 } from "lucide-react";
 import { UserButton, SignOutButton } from "@clerk/nextjs";
 import { Id } from "../../../../convex/_generated/dataModel";
@@ -203,7 +204,6 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
       )}
 
       {/* SIDEBAR */}
-      {/* Changes: Fixed height handling for mobile (dvh), removed margin on mobile, z-50 */}
       <aside className={`
         fixed inset-y-0 left-0 z-50 w-72 lg:static lg:flex lg:flex-col lg:h-[calc(100vh-2rem)] lg:m-4
         h-[100dvh] m-0 bg-background/95 lg:bg-background/50 backdrop-blur-xl lg:backdrop-filter-none
@@ -270,9 +270,15 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
             })}
           </div>
 
-          {/* SYSTEM HUB */}
+          {/* SYSTEM HUB - UPDATED WITH FINANCIAL PULSE */}
           <div className="space-y-1">
             <span className="text-[10px] font-bold text-muted uppercase tracking-widest px-3 mb-2 block">System Hub</span>
+            <NavItem 
+              icon={Activity} 
+              label="Financial Pulse" 
+              href={`/dashboard/${companyId}/finance`} 
+              active={pathname.includes('/finance')} 
+            />
             <NavItem 
               icon={MessageSquare} 
               label="General Chat" 
@@ -315,7 +321,6 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
         </nav>
 
         {/* BOTTOM SECTION - USER & LOGOUT */}
-        {/* Added shrink-0 to prevent squashing and pb-6 for mobile safe area */}
         <div className="p-4 bg-foreground/[0.02] border-t border-border flex flex-col gap-3 rounded-b-none lg:rounded-b-[32px] shrink-0 pb-8 lg:pb-4">
           <div className="flex items-center justify-between">
              <div className="flex items-center gap-3">

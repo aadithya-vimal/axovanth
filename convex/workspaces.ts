@@ -23,6 +23,7 @@ export const getMyMemberships = query({
       .withIndex("by_company_and_user", q => q.eq("companyId", args.companyId).eq("userId", user._id))
       .unique();
 
+    // Company Admins automatically have access to all workspaces
     if (companyMember?.role === "admin") {
       const allWorkspaces = await ctx.db.query("workspaces")
         .withIndex("by_company", q => q.eq("companyId", args.companyId))
@@ -111,7 +112,6 @@ export const resolveAccessRequest = mutation({
   }
 });
 
-// FIX: GHOST USER BUSTER IMPLEMENTED HERE
 export const getMembers = query({
   args: { workspaceId: v.id("workspaces") },
   handler: async (ctx, args) => {
@@ -125,23 +125,17 @@ export const getMembers = query({
 
     const validMembers = await Promise.all(
       members.map(async (member) => {
-        // 1. Fetch User Data
         const user = await ctx.db.get(member.userId);
         if (!user) return null;
-
-        // 2. CRITICAL FIX: Verify they are still in the COMPANY
+        // Verify user is still part of the company
         const companyMember = await ctx.db.query("companyMembers")
             .withIndex("by_company_and_user", q => q.eq("companyId", workspace.companyId).eq("userId", member.userId))
             .unique();
-        
-        // If not in company, they are a "ghost" -> Filter them out
         if (!companyMember) return null;
-
         return { ...member, user };
       })
     );
 
-    // Filter out nulls (the ghosts)
     return validMembers.filter(m => m !== null);
   },
 });
@@ -241,22 +235,27 @@ export const create = mutation({
     }
 
     const n = args.name.toLowerCase();
-    let emoji = "Box"; 
+    let emoji = "Layers"; 
 
+    // --- EXPANDED SMART ICON MAPPING ---
     const map = [
-      { keys: ["tech", "dev", "code", "stack", "engineer", "sys", "compute"], icon: "Terminal" },
-      { keys: ["market", "growth", "seo", "ad", "brand", "content", "social"], icon: "TrendingUp" },
-      { keys: ["sales", "rev", "money", "finance", "bill", "account", "tax"], icon: "BadgeDollarSign" },
-      { keys: ["design", "art", "ui", "ux", "creative", "studio"], icon: "Palette" },
-      { keys: ["legal", "law", "policy", "compliance", "audit"], icon: "Scale" },
-      { keys: ["hr", "human", "people", "recruit", "talent", "culture"], icon: "Users" },
-      { keys: ["ops", "operation", "logist", "supply", "admin"], icon: "Settings2" },
-      { keys: ["support", "help", "customer", "service", "care"], icon: "LifeBuoy" },
-      { keys: ["product", "roadmap", "feature", "spec"], icon: "Rocket" },
-      { keys: ["data", "analytic", "science", "bi", "insight"], icon: "Database" },
-      { keys: ["exec", "ceo", "board", "strategy"], icon: "Briefcase" },
-      { keys: ["qa", "test", "quality", "bug"], icon: "Bug" },
-      { keys: ["security", "sec", "cyber", "guard"], icon: "ShieldCheck" },
+      { keys: ["tech", "dev", "code", "stack", "engineer", "sys", "compute", "backend", "frontend", "api", "git"], icon: "Terminal" },
+      { keys: ["market", "growth", "seo", "ad", "brand", "content", "social", "campaign", "media", "press"], icon: "Megaphone" },
+      { keys: ["sales", "rev", "money", "finance", "bill", "account", "tax", "deal", "pipeline", "close"], icon: "BadgeDollarSign" },
+      { keys: ["design", "art", "ui", "ux", "creative", "studio", "gfx", "video", "motion", "3d"], icon: "Palette" },
+      { keys: ["legal", "law", "policy", "compliance", "audit", "rule", "contract", "gdpr"], icon: "Scale" },
+      { keys: ["hr", "human", "people", "recruit", "talent", "culture", "onboard", "hiring", "interviews"], icon: "Users" },
+      { keys: ["ops", "operation", "logist", "supply", "admin", "office", "facility", "manage"], icon: "Settings2" },
+      { keys: ["support", "help", "customer", "service", "care", "ticket", "success", "client success"], icon: "Headphones" },
+      { keys: ["product", "roadmap", "feature", "spec", "plan", "pm", "cycle"], icon: "Map" },
+      { keys: ["data", "analytic", "science", "bi", "insight", "report", "stats", "metrics", "kpi"], icon: "BarChart3" },
+      { keys: ["exec", "ceo", "board", "strategy", "vision", "leadership", "founder"], icon: "Briefcase" },
+      { keys: ["qa", "test", "quality", "bug", "fix", "automation"], icon: "Bug" },
+      { keys: ["security", "sec", "cyber", "guard", "protect", "firewall", "auth", "access"], icon: "ShieldCheck" },
+      { keys: ["client", "partner", "external", "vendor", "crm", "outreach", "agency"], icon: "Globe" },
+      { keys: ["project", "task", "sprint", "agile", "scrum", "kanban"], icon: "Kanban" },
+      { keys: ["cloud", "aws", "azure", "infra", "network", "server", "docker", "kube"], icon: "Cloud" },
+      { keys: ["storage", "file", "asset", "vault", "drive"], icon: "Box" }
     ];
 
     for (const entry of map) {
@@ -284,7 +283,6 @@ export const create = mutation({
   },
 });
 
-// NEW: Mutation to rename workspace
 export const updateName = mutation({
   args: { workspaceId: v.id("workspaces"), name: v.string() },
   handler: async (ctx, args) => {
@@ -331,6 +329,7 @@ export const updateHead = mutation({
       .withIndex("by_workspace_and_user", q => q.eq("workspaceId", args.workspaceId).eq("userId", args.userId))
       .unique();
 
+    // Ensure the new Head is a member and has admin privileges in that workspace
     if (!targetMember) {
         await ctx.db.insert("workspaceMembers", {
             workspaceId: args.workspaceId,
@@ -422,6 +421,7 @@ export const deleteWorkspace = mutation({
       throw new Error("Insufficient privileges to delete environment.");
     }
 
+    // Cleanup all related data
     await ctx.db.delete(args.workspaceId);
     
     const members = await ctx.db.query("workspaceMembers").withIndex("by_workspace", q => q.eq("workspaceId", args.workspaceId)).collect();
@@ -435,5 +435,9 @@ export const deleteWorkspace = mutation({
 
     const messages = await ctx.db.query("messages").withIndex("by_workspace", q => q.eq("workspaceId", args.workspaceId)).collect();
     for (const m of messages) await ctx.db.delete(m._id);
+    
+    // Also cleanup Kanban tasks
+    const tasks = await ctx.db.query("kanbanTasks").withIndex("by_workspace", q => q.eq("workspaceId", args.workspaceId)).collect();
+    for (const t of tasks) await ctx.db.delete(t._id);
   }
 });

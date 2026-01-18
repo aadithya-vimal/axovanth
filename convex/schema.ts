@@ -42,12 +42,14 @@ export default defineSchema({
     status: v.union(v.literal("pending"), v.literal("approved"), v.literal("rejected")),
   }).index("by_company", ["companyId"]),
 
+  // UPDATED: Added budget field
   workspaces: defineTable({
     companyId: v.id("companies"),
     name: v.string(),
     emoji: v.string(),
     workspaceHeadId: v.id("users"),
     isDefault: v.boolean(),
+    budget: v.optional(v.number()), 
   }).index("by_company", ["companyId"]),
 
   workspaceMembers: defineTable({
@@ -73,7 +75,6 @@ export default defineSchema({
     assigneeId: v.optional(v.id("users")),
     title: v.string(),
     description: v.string(),
-    // UPDATED: Added 'in_progress', 'done', 'closed'
     status: v.union(v.literal("open"), v.literal("in_progress"), v.literal("done"), v.literal("closed"), v.literal("transferred")),
     priority: v.union(v.literal("low"), v.literal("medium"), v.literal("high")),
     type: v.optional(v.union(v.literal("bug"), v.literal("feature"), v.literal("task"))),
@@ -147,5 +148,36 @@ export default defineSchema({
     attachmentId: v.optional(v.id("_storage")),
   })
   .index("by_company", ["companyId"])
-  .index("by_workspace", ["workspaceId"]), 
+  .index("by_workspace", ["workspaceId"]),
+
+  transactions: defineTable({
+    companyId: v.id("companies"),
+    userId: v.id("users"), 
+    type: v.union(v.literal("income"), v.literal("expense")),
+    amount: v.number(),
+    description: v.string(),
+    category: v.string(), 
+    date: v.number(),
+    status: v.union(v.literal("pending"), v.literal("approved"), v.literal("rejected")),
+    isAdSpend: v.boolean(), 
+    workspaceId: v.optional(v.id("workspaces")), // Already existed, now fully utilized
+  }).index("by_company", ["companyId"]),
+
+  retainers: defineTable({
+    companyId: v.id("companies"),
+    clientName: v.string(),
+    totalBudget: v.number(),
+    usedBudget: v.number(),
+    status: v.union(v.literal("active"), v.literal("warning"), v.literal("over_budget")),
+    lastUpdated: v.number(),
+  }).index("by_company", ["companyId"]),
+
+  invoices: defineTable({
+    companyId: v.id("companies"),
+    ticketId: v.optional(v.id("tickets")),
+    clientName: v.string(),
+    amount: v.number(),
+    status: v.union(v.literal("draft"), v.literal("sent"), v.literal("paid")),
+    dueDate: v.number(),
+  }).index("by_company", ["companyId"]),
 });
