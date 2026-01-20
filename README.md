@@ -188,7 +188,3 @@ Transmissions (Pull Requests) are welcome. Please ensure all contributions adher
 *System Status: Operational*
 
 </div>
-
-```
-
-```
