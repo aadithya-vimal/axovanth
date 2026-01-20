@@ -42,7 +42,6 @@ export default defineSchema({
     status: v.union(v.literal("pending"), v.literal("approved"), v.literal("rejected")),
   }).index("by_company", ["companyId"]),
 
-  // UPDATED: Added budget field
   workspaces: defineTable({
     companyId: v.id("companies"),
     name: v.string(),
@@ -128,6 +127,7 @@ export default defineSchema({
     fileName: v.string(),
     fileType: v.string(),
     uploaderId: v.id("users"),
+    isRestricted: v.optional(v.boolean()), // Matches your existing DB
   })
   .index("by_workspace", ["workspaceId"])
   .index("by_company", ["companyId"]),
@@ -135,7 +135,8 @@ export default defineSchema({
   assetEvents: defineTable({
     companyId: v.id("companies"),
     actorId: v.id("users"),
-    type: v.union(v.literal("upload"), v.literal("delete")),
+    // Matches the "update" event that caused the crash
+    type: v.union(v.literal("upload"), v.literal("delete"), v.literal("update")),
     description: v.string(),
     metadata: v.optional(v.string()),
   }).index("by_company", ["companyId"]),
@@ -160,7 +161,7 @@ export default defineSchema({
     date: v.number(),
     status: v.union(v.literal("pending"), v.literal("approved"), v.literal("rejected")),
     isAdSpend: v.boolean(), 
-    workspaceId: v.optional(v.id("workspaces")), // Already existed, now fully utilized
+    workspaceId: v.optional(v.id("workspaces")), 
   }).index("by_company", ["companyId"]),
 
   retainers: defineTable({

@@ -6,7 +6,7 @@ export const generateUploadUrl = mutation(async (ctx) => {
 });
 
 // Helper to log asset events
-async function logAssetEvent(ctx: any, companyId: any, type: "upload" | "delete", description: string) {
+async function logAssetEvent(ctx: any, companyId: any, type: "upload" | "delete" | "update", description: string) {
     const identity = await ctx.auth.getUserIdentity();
     if (!identity) return;
     const user = await ctx.db.query("users").withIndex("by_clerkId", (q: any) => q.eq("clerkId", identity.subject)).unique();
@@ -27,6 +27,8 @@ export const sendFile = mutation({
     workspaceId: v.optional(v.id("workspaces")),
     fileName: v.string(),
     fileType: v.string(),
+    // FIXED: renamed from isDepartmentOnly to isRestricted
+    isRestricted: v.optional(v.boolean()), 
   },
   handler: async (ctx, args) => {
     const identity = await ctx.auth.getUserIdentity();
@@ -46,6 +48,8 @@ export const sendFile = mutation({
       fileName: args.fileName,
       fileType: args.fileType,
       uploaderId: user._id,
+      // FIXED: Use isRestricted to match schema
+      isRestricted: args.isRestricted || false, 
     });
 
     // LOG UPLOAD
@@ -86,7 +90,57 @@ export const deleteFile = mutation({
   }
 });
 
-// Global Company Asset Fetcher
+// NEW: Toggle Visibility Mutation
+export const toggleAssetVisibility = mutation({
+  args: { assetId: v.id("assets") },
+  handler: async (ctx, args) => {
+    const identity = await ctx.auth.getUserIdentity();
+    if (!identity) throw new Error("Unauthorized");
+
+    const user = await ctx.db
+      .query("users")
+      .withIndex("by_clerkId", (q) => q.eq("clerkId", identity.subject))
+      .unique();
+
+    if (!user) throw new Error("User not found");
+
+    const asset = await ctx.db.get(args.assetId);
+    if (!asset) throw new Error("Asset not found");
+
+    // Security: Check if user is Company Admin OR Workspace Head of that asset
+    const companyMember = await ctx.db
+      .query("companyMembers")
+      .withIndex("by_company_and_user", q => q.eq("companyId", asset.companyId).eq("userId", user._id))
+      .unique();
+
+    let hasRights = companyMember?.role === "admin";
+
+    if (!hasRights && asset.workspaceId) {
+      const workspace = await ctx.db.get(asset.workspaceId);
+      if (workspace && workspace.workspaceHeadId === user._id) {
+        hasRights = true;
+      }
+    }
+
+    if (!hasRights) throw new Error("Insufficient privileges to change asset visibility.");
+
+    // FIXED: Use isRestricted property
+    const newState = !asset.isRestricted;
+    await ctx.db.patch(args.assetId, { 
+      isRestricted: newState 
+    });
+
+    await logAssetEvent(
+        ctx, 
+        asset.companyId, 
+        "update", 
+        `Changed visibility of ${asset.fileName} to ${newState ? "Department Only" : "Shared"}`
+    );
+  }
+});
+
+
+// Global Company Asset Fetcher - FILTERED
 export const getByCompany = query({
   args: { companyId: v.id("companies") },
   handler: async (ctx, args) => {
@@ -95,8 +149,12 @@ export const getByCompany = query({
       .withIndex("by_company", (q) => q.eq("companyId", args.companyId))
       .collect();
 
+    // Filter out Restricted (Department Only) assets from the global view
+    // FIXED: Use isRestricted property
+    const visibleAssets = assets.filter(a => !a.isRestricted);
+
     return Promise.all(
-      assets.map(async (asset) => {
+      visibleAssets.map(async (asset) => {
         const uploader = await ctx.db.get(asset.uploaderId);
         return {
           ...asset,
@@ -126,7 +184,7 @@ export const getByWorkspace = query({
   },
 });
 
-// NEW: Fetch Asset History
+// Fetch Asset History
 export const getAssetEvents = query({
     args: { companyId: v.id("companies") },
     handler: async (ctx, args) => {
@@ -134,7 +192,7 @@ export const getAssetEvents = query({
         return Promise.all(
             events.map(async (e) => {
                 const actor = await ctx.db.get(e.actorId);
-                return { ...e, actorName: actor?.name, actorRole: "Admin" }; // Assuming only admins delete, users upload
+                return { ...e, actorName: actor?.name, actorRole: "Admin" }; 
             })
         );
     }

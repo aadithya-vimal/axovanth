@@ -8,7 +8,7 @@ import {
   Ticket, Plus, Hash, UploadCloud, File as FileIcon, Download, 
   Loader2, ArrowRightLeft, X, Send, AlertCircle, ChevronRight, 
   User, RefreshCw, BarChart3, Check, Calendar, Flag, Clock, History, MessageSquare, AlertTriangle,
-  Layout, List, MessageCircle, Paperclip, Smile, Info, ChevronLeft, Trash2, StopCircle
+  Layout, List, MessageCircle, Paperclip, Smile, Info, ChevronLeft, Trash2, StopCircle, Eye, EyeOff
 } from "lucide-react";
 import { useUser } from "@clerk/nextjs";
 
@@ -31,15 +31,16 @@ export default function WorkspacePage() {
   const createTicket = useMutation(api.tickets.create);
   const transferTicket = useMutation(api.tickets.transfer);
   const resolveTicket = useMutation(api.tickets.resolve);
-  const closeTicket = useMutation(api.tickets.close); // NEW
+  const closeTicket = useMutation(api.tickets.close);
   const reopenTicket = useMutation(api.tickets.reopen);
   const addComment = useMutation(api.tickets.addComment);
   const updatePriority = useMutation(api.tickets.updatePriority);
-  const updateTicketStatus = useMutation(api.tickets.updateStatus); // NEW
+  const updateTicketStatus = useMutation(api.tickets.updateStatus);
   const assignTicket = useMutation(api.tickets.assign);
   const setDueDate = useMutation(api.tickets.setDueDate);
   const generateUploadUrl = useMutation(api.files.generateUploadUrl);
   const sendFile = useMutation(api.files.sendFile);
+  const toggleAssetVisibility = useMutation(api.files.toggleAssetVisibility); // NEW
   const sendChatMessage = useMutation(api.chat.send);
 
   // Kanban Mutations
@@ -158,7 +159,6 @@ export default function WorkspacePage() {
     }
   };
 
-  // NEW: Move Ticket Logic (Backlog <-> In Progress <-> Done)
   const moveTicket = (ticketId: any, currentStatus: string, direction: 'next' | 'prev') => {
     const statuses = ['open', 'in_progress', 'done'];
     const idx = statuses.indexOf(currentStatus);
@@ -188,13 +188,13 @@ export default function WorkspacePage() {
       const postUrl = await generateUploadUrl();
       const result = await fetch(postUrl, { method: "POST", headers: { "Content-Type": file.type }, body: file });
       const { storageId } = await result.json();
-      // FIX: Added companyId to payload
       await sendFile({ 
         storageId, 
         companyId, 
         workspaceId, 
         fileName: file.name, 
-        fileType: file.type 
+        fileType: file.type,
+        isRestricted: false, // Default to shared
       });
     } catch (error) { console.error(error); } finally { setIsUploading(false); }
   };
@@ -207,10 +207,8 @@ export default function WorkspacePage() {
 
   const highPriority = tickets.filter(t => t.priority === 'high' && t.status !== 'closed').length;
   const openCount = tickets.filter(t => t.status === 'open' || t.status === 'in_progress').length;
-  // FIX: 'resolved' is not a valid status in schema. Changed to 'closed' which is valid.
   const resolvedCount = tickets.filter(t => t.status === 'done' || t.status === 'closed').length;
 
-  // Updated Ticket Column to support moving
   const TicketColumn = ({ status, label }: { status: string, label: string }) => {
     const columnTickets = tickets.filter(t => t.status === status);
     return (
@@ -237,7 +235,6 @@ export default function WorkspacePage() {
               </div>
               <h4 className="text-sm font-bold text-foreground mb-2 line-clamp-2">{ticket.title}</h4>
               <div className="flex items-center justify-between mt-3 pt-3 border-t border-border/50">
-                {/* ADMIN MOVE LEFT */}
                 {hasAdminRights ? (
                     <button onClick={(e) => { e.stopPropagation(); moveTicket(ticket._id, ticket.status, 'prev'); }} disabled={ticket.status === 'open'} className="p-1.5 rounded hover:bg-foreground/5 disabled:opacity-30 disabled:cursor-not-allowed">
                         <ChevronLeft className="w-4 h-4 text-muted" />
@@ -248,7 +245,6 @@ export default function WorkspacePage() {
                     {ticket.assignee?.name?.[0] || "?"}
                 </div>
 
-                {/* ADMIN MOVE RIGHT */}
                 {hasAdminRights ? (
                     <button onClick={(e) => { e.stopPropagation(); moveTicket(ticket._id, ticket.status, 'next'); }} disabled={ticket.status === 'done'} className="p-1.5 rounded hover:bg-foreground/5 disabled:opacity-30 disabled:cursor-not-allowed">
                         <ChevronRight className="w-4 h-4 text-muted" />
@@ -440,7 +436,7 @@ export default function WorkspacePage() {
         </div>
       )}
 
-      {/* ASSETS TAB */}
+      {/* ASSETS TAB - UPDATED WITH VISIBILITY TOGGLE */}
       {activeTab === 'assets' && (
         <div className="space-y-8 animate-in fade-in">
             <label className="relative glass-panel rounded-3xl border-2 border-dashed border-border p-8 flex flex-col items-center justify-center gap-4 cursor-pointer hover:border-accent hover:bg-accent/[0.02] transition-all group">
@@ -461,12 +457,31 @@ export default function WorkspacePage() {
                     <FileIcon className="w-5 h-5 text-accent" />
                 </div>
                 <div className="flex-1 min-w-0">
-                    <p className="text-sm font-semibold text-foreground truncate">{asset.fileName}</p>
+                    <div className="flex items-center gap-2">
+                        <p className="text-sm font-semibold text-foreground truncate">{asset.fileName}</p>
+                        {asset.isRestricted && (
+                            <span className="text-[9px] bg-accent/10 text-accent px-1.5 py-0.5 rounded font-bold uppercase tracking-wider">Dept. Only</span>
+                        )}
+                    </div>
                     <p className="text-[10px] text-muted font-bold uppercase tracking-wider mt-0.5">{asset.fileType.split('/')[1]}</p>
                 </div>
-                <a href={asset.url || "#"} target="_blank" className="p-2 text-muted hover:text-accent transition-colors rounded-lg hover:bg-accent/10">
-                    <Download className="w-4 h-4" />
-                </a>
+                
+                <div className="flex items-center gap-2">
+                    {/* NEW: DEPARTMENT ONLY TOGGLE */}
+                    {hasAdminRights && (
+                        <button 
+                            onClick={() => toggleAssetVisibility({ assetId: asset._id })}
+                            className={`p-2 rounded-lg transition-colors ${asset.isRestricted ? 'text-accent bg-accent/10' : 'text-muted hover:text-foreground'}`}
+                            title={asset.isRestricted ? "Visible to Department Only" : "Visible to Entire Organization"}
+                        >
+                            {asset.isRestricted ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
+                        </button>
+                    )}
+
+                    <a href={asset.url || "#"} target="_blank" className="p-2 text-muted hover:text-accent transition-colors rounded-lg hover:bg-accent/10">
+                        <Download className="w-4 h-4" />
+                    </a>
+                </div>
                 </div>
             ))}
             </div>
