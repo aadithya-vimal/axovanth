@@ -40,7 +40,7 @@ export default function WorkspacePage() {
   const setDueDate = useMutation(api.tickets.setDueDate);
   const generateUploadUrl = useMutation(api.files.generateUploadUrl);
   const sendFile = useMutation(api.files.sendFile);
-  const toggleAssetVisibility = useMutation(api.files.toggleAssetVisibility); // NEW
+  const toggleAssetVisibility = useMutation(api.files.toggleAssetVisibility);
   const sendChatMessage = useMutation(api.chat.send);
 
   // Kanban Mutations

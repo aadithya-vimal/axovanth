@@ -27,7 +27,6 @@ export const sendFile = mutation({
     workspaceId: v.optional(v.id("workspaces")),
     fileName: v.string(),
     fileType: v.string(),
-    // FIXED: renamed from isDepartmentOnly to isRestricted
     isRestricted: v.optional(v.boolean()), 
   },
   handler: async (ctx, args) => {
@@ -48,7 +47,6 @@ export const sendFile = mutation({
       fileName: args.fileName,
       fileType: args.fileType,
       uploaderId: user._id,
-      // FIXED: Use isRestricted to match schema
       isRestricted: args.isRestricted || false, 
     });
 
@@ -90,7 +88,6 @@ export const deleteFile = mutation({
   }
 });
 
-// NEW: Toggle Visibility Mutation
 export const toggleAssetVisibility = mutation({
   args: { assetId: v.id("assets") },
   handler: async (ctx, args) => {
@@ -124,7 +121,6 @@ export const toggleAssetVisibility = mutation({
 
     if (!hasRights) throw new Error("Insufficient privileges to change asset visibility.");
 
-    // FIXED: Use isRestricted property
     const newState = !asset.isRestricted;
     await ctx.db.patch(args.assetId, { 
       isRestricted: newState 
@@ -150,7 +146,6 @@ export const getByCompany = query({
       .collect();
 
     // Filter out Restricted (Department Only) assets from the global view
-    // FIXED: Use isRestricted property
     const visibleAssets = assets.filter(a => !a.isRestricted);
 
     return Promise.all(

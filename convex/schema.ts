@@ -127,7 +127,7 @@ export default defineSchema({
     fileName: v.string(),
     fileType: v.string(),
     uploaderId: v.id("users"),
-    isRestricted: v.optional(v.boolean()), // Matches your existing DB
+    isRestricted: v.optional(v.boolean()), 
   })
   .index("by_workspace", ["workspaceId"])
   .index("by_company", ["companyId"]),
@@ -135,7 +135,7 @@ export default defineSchema({
   assetEvents: defineTable({
     companyId: v.id("companies"),
     actorId: v.id("users"),
-    // Matches the "update" event that caused the crash
+    // FIX: Added "update" here to fix the Server Error
     type: v.union(v.literal("upload"), v.literal("delete"), v.literal("update")),
     description: v.string(),
     metadata: v.optional(v.string()),
