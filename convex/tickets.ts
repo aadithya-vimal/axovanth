@@ -35,6 +35,14 @@ async function validateAccess(ctx: any, companyId: any, workspaceId?: any) {
   return { user, isOverallAdmin, isWorkspaceAdmin, hasAdminRights: isOverallAdmin || isWorkspaceAdmin };
 }
 
+// HELPER: Appends (Overdue) tag if operation occurs after due date
+const checkOverdue = (text: string, dueDate?: number) => {
+    if (dueDate && dueDate < Date.now()) {
+        return `${text} (Overdue)`;
+    }
+    return text;
+}
+
 export const create = mutation({
   args: {
     companyId: v.id("companies"),
@@ -43,6 +51,7 @@ export const create = mutation({
     description: v.string(),
     priority: v.union(v.literal("low"), v.literal("medium"), v.literal("high")),
     type: v.optional(v.union(v.literal("bug"), v.literal("feature"), v.literal("task"))),
+    dueDate: v.optional(v.number()), // ADDED: Allow setting due date on creation
   },
   handler: async (ctx, args) => {
     const { user } = await validateAccess(ctx, args.companyId);
@@ -51,19 +60,21 @@ export const create = mutation({
       creatorId: user._id,
       status: "open",
       type: args.type || "task",
+      dueDate: args.dueDate,
     });
+
+    const meta = checkOverdue("Flow initialized", args.dueDate);
 
     await ctx.db.insert("ticketEvents", {
       ticketId,
       actorId: user._id,
       type: "created",
-      metadata: "Flow initialized",
+      metadata: meta,
     });
     return ticketId;
   },
 });
 
-// NEW: Generic status update for board movement (Backlog <-> In Progress <-> Done)
 export const updateStatus = mutation({
   args: { 
     ticketId: v.id("tickets"), 
@@ -79,11 +90,14 @@ export const updateStatus = mutation({
     if (ticket.status !== args.status) {
         await ctx.db.patch(args.ticketId, { status: args.status });
 
+        let meta = `Moved to ${args.status.replace('_', ' ')}`;
+        meta = checkOverdue(meta, ticket.dueDate);
+
         await ctx.db.insert("ticketEvents", {
             ticketId: args.ticketId,
             actorId: user._id,
             type: "status_change",
-            metadata: `Moved to ${args.status.replace('_', ' ')}`,
+            metadata: meta,
         });
     }
   },
@@ -100,11 +114,13 @@ export const updatePriority = mutation({
     
     await ctx.db.patch(args.ticketId, { priority: args.priority });
 
+    const meta = checkOverdue(`Priority changed to ${args.priority}`, ticket.dueDate);
+
     await ctx.db.insert("ticketEvents", {
       ticketId: args.ticketId,
       actorId: user._id,
       type: "priority_update",
-      metadata: `Priority changed to ${args.priority}`,
+      metadata: meta,
     });
   },
 });
@@ -125,6 +141,7 @@ export const assign = mutation({
       const assignee = await ctx.db.get(args.assigneeId);
       meta = `Assigned to ${assignee?.name}`;
     }
+    meta = checkOverdue(meta, ticket.dueDate);
 
     await ctx.db.insert("ticketEvents", {
       ticketId: args.ticketId,
@@ -146,7 +163,11 @@ export const setDueDate = mutation({
     
     await ctx.db.patch(args.ticketId, { dueDate: args.dueDate });
 
-    const meta = args.dueDate ? `Due date set to ${new Date(args.dueDate).toLocaleDateString()}` : "Due date removed";
+    let meta = args.dueDate ? `Due date set to ${new Date(args.dueDate).toLocaleDateString()}` : "Due date removed";
+    // Check against old due date? Or new? 
+    // "when ANY ticket operation takes place when it is overdue".
+    // If it WAS overdue, we record it.
+    meta = checkOverdue(meta, ticket.dueDate);
 
     await ctx.db.insert("ticketEvents", {
       ticketId: args.ticketId,
@@ -177,16 +198,17 @@ export const transfer = mutation({
       status: "transferred" 
     });
 
+    const meta = checkOverdue(`Transferred from ${oldWs?.name} to ${newWs?.name}`, ticket.dueDate);
+
     await ctx.db.insert("ticketEvents", {
       ticketId: args.ticketId,
       actorId: user._id,
       type: "transferred",
-      metadata: `Transferred from ${oldWs?.name} to ${newWs?.name}`,
+      metadata: meta,
     });
   },
 });
 
-// RENAMED: 'resolve' -> 'close' to differentiate from "Done" status
 export const close = mutation({
   args: { ticketId: v.id("tickets") },
   handler: async (ctx, args) => {
@@ -197,16 +219,18 @@ export const close = mutation({
 
     await ctx.db.patch(args.ticketId, { status: "closed" });
 
+    let meta = "Flow closed and archived";
+    meta = checkOverdue(meta, ticket.dueDate);
+
     await ctx.db.insert("ticketEvents", {
       ticketId: args.ticketId,
       actorId: user._id,
       type: "status_change",
-      metadata: "Flow closed and archived",
+      metadata: meta,
     });
   },
 });
 
-// Legacy support if needed, or simply alias to close
 export const resolve = mutation({
     args: { ticketId: v.id("tickets") },
     handler: async (ctx, args) => {
@@ -215,13 +239,15 @@ export const resolve = mutation({
       const { hasAdminRights, user } = await validateAccess(ctx, ticket.companyId, ticket.workspaceId);
       if (!hasAdminRights) throw new Error("Security Violation");
   
-      await ctx.db.patch(args.ticketId, { status: "closed" }); // Map legacy resolve to closed
+      await ctx.db.patch(args.ticketId, { status: "closed" });
   
+      const meta = checkOverdue("Flow resolved (closed)", ticket.dueDate);
+
       await ctx.db.insert("ticketEvents", {
         ticketId: args.ticketId,
         actorId: user._id,
         type: "status_change",
-        metadata: "Flow resolved (closed)",
+        metadata: meta,
       });
     },
 });
@@ -234,14 +260,15 @@ export const reopen = mutation({
     const { hasAdminRights, user } = await validateAccess(ctx, ticket.companyId, ticket.workspaceId);
     if (!hasAdminRights) throw new Error("Security Violation");
 
-    // Reopen moves it back to Backlog (open)
     await ctx.db.patch(args.ticketId, { status: "open" });
+
+    const meta = checkOverdue("Flow reopened for further action", ticket.dueDate);
 
     await ctx.db.insert("ticketEvents", {
       ticketId: args.ticketId,
       actorId: user._id,
       type: "status_change",
-      metadata: "Flow reopened for further action",
+      metadata: meta,
     });
   },
 });

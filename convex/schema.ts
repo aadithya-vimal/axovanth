@@ -74,7 +74,8 @@ export default defineSchema({
     assigneeId: v.optional(v.id("users")),
     title: v.string(),
     description: v.string(),
-    status: v.union(v.literal("open"), v.literal("in_progress"), v.literal("done"), v.literal("closed"), v.literal("transferred")),
+    // FIXED: Added 'resolved' back to support legacy tickets in Archive
+    status: v.union(v.literal("open"), v.literal("in_progress"), v.literal("done"), v.literal("closed"), v.literal("resolved"), v.literal("transferred")),
     priority: v.union(v.literal("low"), v.literal("medium"), v.literal("high")),
     type: v.optional(v.union(v.literal("bug"), v.literal("feature"), v.literal("task"))),
     dueDate: v.optional(v.number()),
@@ -135,7 +136,6 @@ export default defineSchema({
   assetEvents: defineTable({
     companyId: v.id("companies"),
     actorId: v.id("users"),
-    // FIX: Added "update" here to fix the Server Error
     type: v.union(v.literal("upload"), v.literal("delete"), v.literal("update")),
     description: v.string(),
     metadata: v.optional(v.string()),

@@ -8,7 +8,7 @@ import {
   Ticket, Plus, Hash, UploadCloud, File as FileIcon, Download, 
   Loader2, ArrowRightLeft, X, Send, AlertCircle, ChevronRight, 
   User, RefreshCw, BarChart3, Check, Calendar, Flag, Clock, History, MessageSquare, AlertTriangle,
-  Layout, List, MessageCircle, Paperclip, Smile, Info, ChevronLeft, Trash2, StopCircle, Eye, EyeOff
+  Layout, List, MessageCircle, Paperclip, Smile, Info, ChevronLeft, Trash2, StopCircle, Eye, EyeOff, Archive
 } from "lucide-react";
 import { useUser } from "@clerk/nextjs";
 
@@ -51,7 +51,7 @@ export default function WorkspacePage() {
   const addKanbanComment = useMutation(api.kanban.addComment);
 
   // UI State
-  const [activeTab, setActiveTab] = useState<'overview' | 'board' | 'kanban' | 'chat' | 'assets'>('overview');
+  const [activeTab, setActiveTab] = useState<'overview' | 'board' | 'kanban' | 'chat' | 'assets' | 'archive'>('overview');
   const [selectedTicketId, setSelectedTicketId] = useState<string | null>(null);
   
   // Drawer Tab State
@@ -88,6 +88,9 @@ export default function WorkspacePage() {
   const kanbanEvents = useQuery(api.kanban.getEvents, selectedTaskId ? { taskId: selectedTaskId as any } : "skip");
 
   const hasAdminRights = myPermissions?.isOverallAdmin || myPermissions?.workspaceRole === "admin";
+
+  // Helper to check for archived status (including legacy 'resolved')
+  const isArchived = (status: string) => status === 'closed' || status === 'resolved';
 
   // --- HANDLERS ---
 
@@ -194,7 +197,7 @@ export default function WorkspacePage() {
         workspaceId, 
         fileName: file.name, 
         fileType: file.type,
-        isRestricted: false, // Default to shared
+        isRestricted: false, 
       });
     } catch (error) { console.error(error); } finally { setIsUploading(false); }
   };
@@ -205,9 +208,9 @@ export default function WorkspacePage() {
     </div>
   );
 
-  const highPriority = tickets.filter(t => t.priority === 'high' && t.status !== 'closed').length;
+  const highPriority = tickets.filter(t => t.priority === 'high' && !isArchived(t.status)).length;
   const openCount = tickets.filter(t => t.status === 'open' || t.status === 'in_progress').length;
-  const resolvedCount = tickets.filter(t => t.status === 'done' || t.status === 'closed').length;
+  const resolvedCount = tickets.filter(t => isArchived(t.status) || t.status === 'done').length;
 
   const TicketColumn = ({ status, label }: { status: string, label: string }) => {
     const columnTickets = tickets.filter(t => t.status === status);
@@ -220,39 +223,60 @@ export default function WorkspacePage() {
           </h3>
         </div>
         <div className="flex-1 bg-foreground/[0.02] rounded-2xl p-2 space-y-3 min-h-[500px] border border-border/50">
-          {columnTickets.map(ticket => (
-            <div 
-              key={ticket._id}
-              onClick={() => setSelectedTicketId(ticket._id)}
-              className="p-4 rounded-xl bg-background border border-border hover:border-accent/50 cursor-pointer shadow-sm group transition-all"
-            >
-              <div className="flex justify-between items-start mb-2">
-                <span className={`px-2 py-0.5 rounded text-[10px] font-bold uppercase ${
-                  ticket.priority === 'high' ? 'bg-red-500/10 text-red-500' : 'bg-blue-500/10 text-blue-500'
-                }`}>
-                  {ticket.priority}
-                </span>
-              </div>
-              <h4 className="text-sm font-bold text-foreground mb-2 line-clamp-2">{ticket.title}</h4>
-              <div className="flex items-center justify-between mt-3 pt-3 border-t border-border/50">
-                {hasAdminRights ? (
-                    <button onClick={(e) => { e.stopPropagation(); moveTicket(ticket._id, ticket.status, 'prev'); }} disabled={ticket.status === 'open'} className="p-1.5 rounded hover:bg-foreground/5 disabled:opacity-30 disabled:cursor-not-allowed">
-                        <ChevronLeft className="w-4 h-4 text-muted" />
-                    </button>
-                ) : <div />}
+          {columnTickets.map(ticket => {
+             // OVERDUE CHECK
+             const isOverdue = ticket.dueDate && ticket.dueDate < Date.now() && ticket.status !== 'done' && !isArchived(ticket.status);
+             
+             return (
+                <div 
+                  key={ticket._id}
+                  onClick={() => setSelectedTicketId(ticket._id)}
+                  className={`p-4 rounded-xl bg-background border hover:border-accent/50 cursor-pointer shadow-sm group transition-all ${isOverdue ? 'border-red-500/50 shadow-red-500/10' : 'border-border'}`}
+                >
+                  <div className="flex justify-between items-start mb-2">
+                    <span className={`px-2 py-0.5 rounded text-[10px] font-bold uppercase ${
+                      ticket.priority === 'high' ? 'bg-red-500/10 text-red-500' : 'bg-blue-500/10 text-blue-500'
+                    }`}>
+                      {ticket.priority}
+                    </span>
+                    {ticket.dueDate && (
+                        <span className={`text-[10px] font-bold uppercase tracking-wider ${isOverdue ? "text-red-500 flex items-center gap-1" : "text-muted"}`}>
+                            {isOverdue && <AlertTriangle className="w-3 h-3" />}
+                            {new Date(ticket.dueDate).toLocaleDateString()}
+                        </span>
+                    )}
+                  </div>
+                  
+                  {/* OVERDUE BANNER */}
+                  {isOverdue && (
+                      <div className="bg-red-500/10 border border-red-500/20 rounded-lg px-3 py-2 mb-3 flex items-center gap-2 animate-pulse">
+                          <AlertCircle className="w-4 h-4 text-red-600" />
+                          <span className="text-[10px] font-bold text-red-600 uppercase tracking-wider">OVERDUE</span>
+                      </div>
+                  )}
 
-                <div className="w-5 h-5 rounded-full bg-foreground/10 flex items-center justify-center text-[9px] font-bold">
-                    {ticket.assignee?.name?.[0] || "?"}
+                  <h4 className="text-sm font-bold text-foreground mb-2 line-clamp-2">{ticket.title}</h4>
+                  
+                  <div className="flex items-center justify-between mt-3 pt-3 border-t border-border/50">
+                    {hasAdminRights ? (
+                        <button onClick={(e) => { e.stopPropagation(); moveTicket(ticket._id, ticket.status, 'prev'); }} disabled={ticket.status === 'open'} className="p-1.5 rounded hover:bg-foreground/5 disabled:opacity-30 disabled:cursor-not-allowed">
+                            <ChevronLeft className="w-4 h-4 text-muted" />
+                        </button>
+                    ) : <div />}
+
+                    <div className="w-5 h-5 rounded-full bg-foreground/10 flex items-center justify-center text-[9px] font-bold">
+                        {ticket.assignee?.name?.[0] || "?"}
+                    </div>
+
+                    {hasAdminRights ? (
+                        <button onClick={(e) => { e.stopPropagation(); moveTicket(ticket._id, ticket.status, 'next'); }} disabled={ticket.status === 'done'} className="p-1.5 rounded hover:bg-foreground/5 disabled:opacity-30 disabled:cursor-not-allowed">
+                            <ChevronRight className="w-4 h-4 text-muted" />
+                        </button>
+                    ) : <div />}
+                  </div>
                 </div>
-
-                {hasAdminRights ? (
-                    <button onClick={(e) => { e.stopPropagation(); moveTicket(ticket._id, ticket.status, 'next'); }} disabled={ticket.status === 'done'} className="p-1.5 rounded hover:bg-foreground/5 disabled:opacity-30 disabled:cursor-not-allowed">
-                        <ChevronRight className="w-4 h-4 text-muted" />
-                    </button>
-                ) : <div />}
-              </div>
-            </div>
-          ))}
+             );
+          })}
         </div>
       </div>
     );
@@ -321,6 +345,8 @@ export default function WorkspacePage() {
                 <button onClick={() => setActiveTab('kanban')} className={`px-4 py-2 rounded-lg text-xs font-bold uppercase tracking-wider transition-all whitespace-nowrap ${activeTab === 'kanban' ? 'bg-background shadow-sm text-foreground' : 'text-muted hover:text-foreground'}`}>Task Board</button>
                 <button onClick={() => setActiveTab('chat')} className={`px-4 py-2 rounded-lg text-xs font-bold uppercase tracking-wider transition-all whitespace-nowrap ${activeTab === 'chat' ? 'bg-background shadow-sm text-foreground' : 'text-muted hover:text-foreground'}`}>Chat</button>
                 <button onClick={() => setActiveTab('assets')} className={`px-4 py-2 rounded-lg text-xs font-bold uppercase tracking-wider transition-all whitespace-nowrap ${activeTab === 'assets' ? 'bg-background shadow-sm text-foreground' : 'text-muted hover:text-foreground'}`}>Assets</button>
+                {/* NEW: Archive Tab Button */}
+                <button onClick={() => setActiveTab('archive')} className={`px-4 py-2 rounded-lg text-xs font-bold uppercase tracking-wider transition-all whitespace-nowrap ${activeTab === 'archive' ? 'bg-background shadow-sm text-foreground' : 'text-muted hover:text-foreground'}`}>Archive</button>
             </div>
             <button 
                 onClick={() => activeTab === 'kanban' ? setIsTaskModalOpen(true) : setIsModalOpen(true)} 
@@ -350,40 +376,52 @@ export default function WorkspacePage() {
                 </div>
             </section>
 
-            {/* LIST - Filtered closed tickets */}
+            {/* LIST - Filtered closed tickets - UPDATED WITH OVERDUE VISUALS */}
             <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                {tickets.filter(t => t.status !== 'closed').map((ticket) => (
-                <div 
-                    key={ticket._id} 
-                    onClick={() => setSelectedTicketId(ticket._id)}
-                    className="glass-panel p-6 rounded-3xl border border-border hover:border-accent/50 hover:bg-accent/[0.02] transition-all duration-300 cursor-pointer group shadow-sm hover:shadow-xl"
-                >
-                    <div className="flex items-center justify-between mb-6">
-                    <span className={`px-2.5 py-1 rounded-full text-[10px] font-bold uppercase tracking-wider border ${
-                        ticket.priority === "high" ? "bg-red-500/10 text-red-600 border-red-200 dark:border-red-900" : 
-                        ticket.priority === "medium" ? "bg-orange-500/10 text-orange-600 border-orange-200 dark:border-orange-900" :
-                        "bg-green-500/10 text-green-600 border-green-200 dark:border-green-900"
-                    }`}>
-                        {ticket.priority}
-                    </span>
-                    <div className="w-8 h-8 rounded-full bg-foreground/5 flex items-center justify-center text-muted group-hover:text-accent transition-colors">
-                        <ChevronRight className="w-4 h-4" />
-                    </div>
-                    </div>
-                    <h3 className="font-semibold text-lg text-foreground mb-2 truncate tracking-tight">{ticket.title}</h3>
-                    <p className="text-muted text-sm font-normal line-clamp-2 mb-6 leading-relaxed">{ticket.description}</p>
-                    <div className="flex items-center justify-between pt-4 border-t border-border">
-                    <div className="flex items-center gap-2 text-muted text-[10px] font-bold uppercase tracking-wider">
-                        <User className="w-3 h-3" /> {ticket.assignee ? ticket.assignee.name.split(' ')[0] : 'Unassigned'}
-                    </div>
-                    <span className={`text-[10px] font-bold uppercase tracking-wider ${
-                        ticket.status === 'done' ? 'text-green-600' : 'text-accent'
-                    }`}>
-                        {ticket.status.replace('_', ' ')}
-                    </span>
-                    </div>
-                </div>
-                ))}
+                {tickets.filter(t => !isArchived(t.status)).map((ticket) => {
+                    const isOverdue = ticket.dueDate && ticket.dueDate < Date.now() && ticket.status !== 'done';
+                    return (
+                        <div 
+                            key={ticket._id} 
+                            onClick={() => setSelectedTicketId(ticket._id)}
+                            className={`glass-panel p-6 rounded-3xl border hover:border-accent/50 hover:bg-accent/[0.02] transition-all duration-300 cursor-pointer group shadow-sm hover:shadow-xl ${isOverdue ? 'border-red-500/50 shadow-red-500/10' : 'border-border'}`}
+                        >
+                            <div className="flex items-center justify-between mb-6">
+                                <span className={`px-2.5 py-1 rounded-full text-[10px] font-bold uppercase tracking-wider border ${
+                                    ticket.priority === "high" ? "bg-red-500/10 text-red-600 border-red-200 dark:border-red-900" : 
+                                    ticket.priority === "medium" ? "bg-orange-500/10 text-orange-600 border-orange-200 dark:border-orange-900" :
+                                    "bg-green-500/10 text-green-600 border-green-200 dark:border-green-900"
+                                }`}>
+                                    {ticket.priority}
+                                </span>
+                                <div className="w-8 h-8 rounded-full bg-foreground/5 flex items-center justify-center text-muted group-hover:text-accent transition-colors">
+                                    <ChevronRight className="w-4 h-4" />
+                                </div>
+                            </div>
+
+                            {/* OVERDUE BANNER FOR OVERVIEW */}
+                            {isOverdue && (
+                                <div className="bg-red-500/10 border border-red-500/20 rounded-xl px-3 py-2 mb-4 flex items-center gap-2 animate-pulse">
+                                    <AlertCircle className="w-4 h-4 text-red-600" />
+                                    <span className="text-[10px] font-bold text-red-600 uppercase tracking-wider">OVERDUE</span>
+                                </div>
+                            )}
+
+                            <h3 className="font-semibold text-lg text-foreground mb-2 truncate tracking-tight">{ticket.title}</h3>
+                            <p className="text-muted text-sm font-normal line-clamp-2 mb-6 leading-relaxed">{ticket.description}</p>
+                            <div className="flex items-center justify-between pt-4 border-t border-border">
+                                <div className="flex items-center gap-2 text-muted text-[10px] font-bold uppercase tracking-wider">
+                                    <User className="w-3 h-3" /> {ticket.assignee ? ticket.assignee.name.split(' ')[0] : 'Unassigned'}
+                                </div>
+                                <span className={`text-[10px] font-bold uppercase tracking-wider ${
+                                    ticket.status === 'done' ? 'text-green-600' : 'text-accent'
+                                }`}>
+                                    {ticket.status.replace('_', ' ')}
+                                </span>
+                            </div>
+                        </div>
+                    );
+                })}
             </div>
         </div>
       )}
@@ -404,6 +442,44 @@ export default function WorkspacePage() {
             <KanbanColumn status="todo" label="Todo" />
             <KanbanColumn status="in_progress" label="In Progress" />
             <KanbanColumn status="done" label="Done" />
+        </div>
+      )}
+
+      {/* NEW: ARCHIVE TAB */}
+      {activeTab === 'archive' && (
+        <div className="space-y-4 animate-in fade-in">
+           <div className="p-6 glass-panel rounded-3xl border border-border">
+              <div className="flex items-center gap-3 mb-6">
+                 <Archive className="w-5 h-5 text-muted" />
+                 <h2 className="text-lg font-bold">Ticket Archive</h2>
+              </div>
+              
+              <div className="space-y-2">
+                 {/* Filters for both closed and legacy resolved status */}
+                 {tickets.filter(t => isArchived(t.status)).length === 0 ? (
+                    <p className="text-sm text-muted italic">No archived tickets found.</p>
+                 ) : (
+                    tickets.filter(t => isArchived(t.status)).map(t => (
+                       <div 
+                         key={t._id} 
+                         onClick={() => setSelectedTicketId(t._id)}
+                         className="flex items-center justify-between p-4 rounded-xl hover:bg-foreground/5 cursor-pointer border border-transparent hover:border-border transition-all"
+                       >
+                          <div className="flex items-center gap-4">
+                             <div className="w-8 h-8 rounded-full bg-green-500/10 flex items-center justify-center text-green-600">
+                                <Check className="w-4 h-4" />
+                             </div>
+                             <div>
+                                <p className="font-bold text-sm text-foreground">{t.title}</p>
+                                <p className="text-[10px] text-muted">Closed on {new Date(t._creationTime).toLocaleDateString()}</p>
+                             </div>
+                          </div>
+                          <span className="text-[10px] font-bold bg-foreground/10 px-2 py-1 rounded text-muted uppercase">Archived</span>
+                       </div>
+                    ))
+                 )}
+              </div>
+           </div>
         </div>
       )}
 
@@ -518,7 +594,7 @@ export default function WorkspacePage() {
                 <div className="min-w-0">
                   <div className="flex items-center gap-2 mb-1">
                     <span className="text-[10px] font-bold uppercase tracking-wider text-muted hidden md:inline">ID: {selectedTicket._id.substring(0,8)}</span>
-                    <span className={`text-[10px] font-bold uppercase tracking-wider px-2 py-0.5 rounded-full ${selectedTicket.status === 'open' ? 'bg-accent/10 text-accent' : selectedTicket.status === 'closed' ? 'bg-red-500/10 text-red-500' : 'bg-green-500/10 text-green-600'}`}>
+                    <span className={`text-[10px] font-bold uppercase tracking-wider px-2 py-0.5 rounded-full ${selectedTicket.status === 'open' ? 'bg-accent/10 text-accent' : isArchived(selectedTicket.status) ? 'bg-red-500/10 text-red-500' : 'bg-green-500/10 text-green-600'}`}>
                         {selectedTicket.status.replace('_', ' ')}
                     </span>
                   </div>
@@ -566,9 +642,14 @@ export default function WorkspacePage() {
                           <div className="mt-1">
                             {e.type === 'created' && <Plus className="w-4 h-4 text-blue-500" />}
                             {e.type.includes('update') && <RefreshCw className="w-4 h-4 text-muted" />}
+                            {/* UPDATED: Highlight Status Changes */}
+                            {e.type === 'status_change' && <Check className="w-4 h-4 text-green-500" />}
                           </div>
                           <div>
-                            <p className="text-sm font-medium text-foreground">{e.metadata}</p>
+                            {/* UPDATED: Overdue Styling */}
+                            <p className={`text-sm font-medium ${e.metadata?.includes("Overdue") ? "text-red-500" : "text-foreground"}`}>
+                                {e.metadata}
+                            </p>
                             <span className="text-[10px] text-muted opacity-50">{new Date(e._creationTime).toLocaleString()} • {e.actor?.name}</span>
                           </div>
                         </div>
@@ -605,8 +686,10 @@ export default function WorkspacePage() {
                             <h3 className="text-xs font-bold text-muted uppercase tracking-wider flex items-center gap-2"><AlertCircle className="w-3.5 h-3.5" /> Controls</h3>
                             {hasAdminRights ? (
                                 <>
-                                {selectedTicket.status !== 'closed' ? (
-                                    <button onClick={() => setConfirmAction({type: 'close'})} className="w-full py-3 bg-green-500/10 text-green-600 border border-green-500/20 rounded-xl text-xs font-bold uppercase hover:bg-green-500 hover:text-white transition-all">Close & Archive</button>
+                                {!isArchived(selectedTicket.status) ? (
+                                    <button onClick={() => setConfirmAction({type: 'close'})} className="w-full py-3 bg-green-500/10 text-green-600 border border-green-500/20 rounded-xl text-xs font-bold uppercase hover:bg-green-500 hover:text-white transition-all flex items-center justify-center gap-2">
+                                        <StopCircle className="w-4 h-4" /> Close & Archive
+                                    </button>
                                 ) : (
                                     <button onClick={() => setConfirmAction({type: 'reopen'})} className="w-full py-3 bg-foreground/5 text-foreground border border-border rounded-xl text-xs font-bold uppercase hover:bg-foreground/10 transition-all flex items-center justify-center gap-2"><RefreshCw className="w-3 h-3" /> Reopen</button>
                                 )}
@@ -614,15 +697,15 @@ export default function WorkspacePage() {
                                     <button onClick={() => setIsTransferring(true)} className="w-full py-3 bg-background border border-border text-muted rounded-xl text-xs font-bold uppercase hover:border-accent hover:text-accent transition-all">Transfer Node</button>
                                 ) : (
                                     <div className="space-y-2 animate-in fade-in">
-                                    <select className="w-full bg-background border border-border rounded-xl px-2 py-2 text-xs" onChange={(e) => setTargetWs(e.target.value)}>
+                                    <select className="w-full bg-background border border-border rounded-xl px-2 py-1.5 text-xs" onChange={(e) => setTargetWs(e.target.value)}>
                                         <option value="">Select Department...</option>
                                         {workspaces?.filter(ws => ws._id !== workspaceId).map(ws => (
                                         <option key={ws._id} value={ws._id}>{ws.emoji} {ws.name}</option>
                                         ))}
                                     </select>
                                     <div className="flex gap-2">
-                                        <button onClick={() => setIsTransferring(false)} className="flex-1 py-2 bg-foreground/5 rounded-lg text-[10px] font-bold uppercase">Cancel</button>
-                                        <button onClick={() => setConfirmAction({type: 'transfer', targetId: targetWs})} disabled={!targetWs} className="flex-1 py-2 bg-accent text-white rounded-lg text-[10px] font-bold uppercase">Confirm</button>
+                                        <button onClick={() => setIsTransferring(false)} className="flex-1 py-1 bg-foreground/5 rounded-lg text-[10px] font-bold uppercase">Cancel</button>
+                                        <button onClick={() => setConfirmAction({type: 'transfer', targetId: targetWs})} disabled={!targetWs} className="flex-1 py-1 bg-accent text-white rounded-lg text-[10px] font-bold uppercase">Confirm</button>
                                     </div>
                                     </div>
                                 )}
@@ -673,7 +756,7 @@ export default function WorkspacePage() {
                   <h3 className="text-xs font-bold text-muted uppercase tracking-wider flex items-center gap-2"><AlertCircle className="w-3.5 h-3.5" /> Controls</h3>
                   {hasAdminRights ? (
                     <>
-                      {selectedTicket.status !== 'closed' ? (
+                      {!isArchived(selectedTicket.status) ? (
                         <button onClick={() => setConfirmAction({type: 'close'})} className="w-full py-2 bg-green-500/10 text-green-600 border border-green-500/20 rounded-xl text-xs font-bold uppercase hover:bg-green-500 hover:text-white transition-all flex items-center justify-center gap-2">
                             <StopCircle className="w-4 h-4" /> Close & Archive
                         </button>
