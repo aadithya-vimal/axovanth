@@ -2,9 +2,12 @@
 
 import { useEffect } from "react";
 import { useQuery } from "convex/react";
-import { api } from "../../../../convex/_generated/api"; // Corrected path (4 levels up)
+import { api } from "../../../../convex/_generated/api"; 
 import { useParams, useRouter } from "next/navigation";
 import { Loader2 } from "lucide-react";
+
+// FIX: Explicitly set Edge Runtime
+export const runtime = "edge";
 
 export default function DashboardIndex() {
   const params = useParams();

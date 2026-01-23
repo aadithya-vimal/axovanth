@@ -18,6 +18,9 @@ import {
 import { useUser } from "@clerk/nextjs";
 import { Id } from "../../../../../convex/_generated/dataModel";
 
+// FIX: Explicitly set Edge Runtime
+export const runtime = "edge";
+
 // Icon Registry (Must match Layout)
 const WorkspaceIconMap: Record<string, any> = {
   Terminal, TrendingUp, BadgeDollarSign, Palette, Scale, Users, 

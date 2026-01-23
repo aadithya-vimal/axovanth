@@ -1,5 +1,7 @@
 "use client";
 
+export const runtime = "edge";
+
 import { useState, useRef, useEffect } from "react";
 import { useQuery, useMutation } from "convex/react";
 import { api } from "../../../../../../convex/_generated/api";
@@ -602,7 +604,7 @@ export default function WorkspacePage() {
                 <div className="min-w-0">
                   <div className="flex items-center gap-2 mb-1">
                     <span className="text-[10px] font-bold uppercase tracking-wider text-muted hidden md:inline">ID: {selectedTicket._id.substring(0,8)}</span>
-                    <span className={`text-[10px] font-bold uppercase tracking-wider px-2 py-0.5 rounded-full ${selectedTicket.status === 'open' ? 'bg-accent/10 text-accent' : isArchived(selectedTicket.status) ? 'bg-red-500/10 text-red-500' : 'bg-green-500/10 text-green-600'}`}>
+                    <span className={`text-[10px] font-bold uppercase tracking-wider px-2 py-0.5 rounded-full ${selectedTicket.status === 'open' ? 'bg-accent/10 text-accent' : selectedTicket.status === 'closed' ? 'bg-red-500/10 text-red-500' : 'bg-green-500/10 text-green-600'}`}>
                         {selectedTicket.status.replace('_', ' ')}
                     </span>
                   </div>
@@ -694,10 +696,8 @@ export default function WorkspacePage() {
                             <h3 className="text-xs font-bold text-muted uppercase tracking-wider flex items-center gap-2"><AlertCircle className="w-3.5 h-3.5" /> Controls</h3>
                             {hasAdminRights ? (
                                 <>
-                                {!isArchived(selectedTicket.status) ? (
-                                    <button onClick={() => setConfirmAction({type: 'close'})} className="w-full py-3 bg-green-500/10 text-green-600 border border-green-500/20 rounded-xl text-xs font-bold uppercase hover:bg-green-500 hover:text-white transition-all flex items-center justify-center gap-2">
-                                        <StopCircle className="w-4 h-4" /> Close & Archive
-                                    </button>
+                                {selectedTicket.status !== 'closed' ? (
+                                    <button onClick={() => setConfirmAction({type: 'close'})} className="w-full py-3 bg-green-500/10 text-green-600 border border-green-500/20 rounded-xl text-xs font-bold uppercase hover:bg-green-500 hover:text-white transition-all">Close & Archive</button>
                                 ) : (
                                     <button onClick={() => setConfirmAction({type: 'reopen'})} className="w-full py-3 bg-foreground/5 text-foreground border border-border rounded-xl text-xs font-bold uppercase hover:bg-foreground/10 transition-all flex items-center justify-center gap-2"><RefreshCw className="w-3 h-3" /> Reopen</button>
                                 )}
@@ -705,15 +705,15 @@ export default function WorkspacePage() {
                                     <button onClick={() => setIsTransferring(true)} className="w-full py-3 bg-background border border-border text-muted rounded-xl text-xs font-bold uppercase hover:border-accent hover:text-accent transition-all">Transfer Node</button>
                                 ) : (
                                     <div className="space-y-2 animate-in fade-in">
-                                    <select className="w-full bg-background border border-border rounded-xl px-2 py-1.5 text-xs" onChange={(e) => setTargetWs(e.target.value)}>
+                                    <select className="w-full bg-background border border-border rounded-xl px-2 py-2 text-xs" onChange={(e) => setTargetWs(e.target.value)}>
                                         <option value="">Select Department...</option>
                                         {workspaces?.filter(ws => ws._id !== workspaceId).map(ws => (
                                         <option key={ws._id} value={ws._id}>{ws.emoji} {ws.name}</option>
                                         ))}
                                     </select>
                                     <div className="flex gap-2">
-                                        <button onClick={() => setIsTransferring(false)} className="flex-1 py-1 bg-foreground/5 rounded-lg text-[10px] font-bold uppercase">Cancel</button>
-                                        <button onClick={() => setConfirmAction({type: 'transfer', targetId: targetWs})} disabled={!targetWs} className="flex-1 py-1 bg-accent text-white rounded-lg text-[10px] font-bold uppercase">Confirm</button>
+                                        <button onClick={() => setIsTransferring(false)} className="flex-1 py-2 bg-foreground/5 rounded-lg text-[10px] font-bold uppercase">Cancel</button>
+                                        <button onClick={() => setConfirmAction({type: 'transfer', targetId: targetWs})} disabled={!targetWs} className="flex-1 py-2 bg-accent text-white rounded-lg text-[10px] font-bold uppercase">Confirm</button>
                                     </div>
                                     </div>
                                 )}

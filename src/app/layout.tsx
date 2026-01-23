@@ -6,7 +6,10 @@ import { ClerkProvider } from "@clerk/nextjs";
 
 const inter = Inter({ subsets: ["latin"] });
 
-// 1. Metadata (SEO, OpenGraph, etc.)
+// 1. Force Edge Runtime for Cloudflare Pages
+export const runtime = "edge";
+
+// 2. Metadata
 export const metadata: Metadata = {
   title: "Axovanth | Enterprise Operating System",
   description: "Advanced workspace management, ticketing, and asset control for modern enterprises.",
@@ -26,7 +29,7 @@ export const metadata: Metadata = {
   },
 };
 
-// 2. Viewport (Separated from metadata as per Next.js 14+ requirements)
+// 3. Viewport
 export const viewport: Viewport = {
   width: "device-width",
   initialScale: 1,
