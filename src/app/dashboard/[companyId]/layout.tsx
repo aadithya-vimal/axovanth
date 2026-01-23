@@ -16,6 +16,7 @@ import {
 } from "lucide-react";
 import { UserButton, SignOutButton } from "@clerk/nextjs";
 import { Id } from "../../../../convex/_generated/dataModel";
+import { GlobalSearch } from "@/components/global-search";
 
 // Icon Mapping Registry
 const WorkspaceIconMap: Record<string, any> = {
@@ -115,6 +116,13 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
   return (
     <div className="flex h-screen bg-background overflow-hidden font-sans">
       
+      {/* GLOBAL SEARCH MODAL */}
+      <GlobalSearch 
+        isOpen={isSearchOpen} 
+        onClose={() => setIsSearchOpen(false)} 
+        companyId={companyId} 
+      />
+      
       {/* ---------------------------------------------------------------------- */}
       {/* MOBILE HEADER - Fixed at top */}
       {/* ---------------------------------------------------------------------- */}
@@ -171,26 +179,6 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
             >
               Cancel
             </button>
-          </div>
-        </div>
-      )}
-
-      {/* OMNIBAR */}
-      {isSearchOpen && (
-        <div className="fixed inset-0 z-[100] flex items-start justify-center pt-[15vh] bg-black/40 backdrop-blur-md p-4">
-          <div className="glass-panel w-full max-w-xl rounded-3xl shadow-2xl border border-white/10 overflow-hidden animate-in fade-in zoom-in duration-200">
-            <div className="p-4 flex items-center gap-3 border-b border-white/5">
-              <Search className="w-5 h-5 text-muted" />
-              <input autoFocus placeholder="Search Axovanth..." className="bg-transparent border-none outline-none w-full text-lg font-medium text-foreground" />
-              <div className="px-2 py-1 bg-foreground/5 rounded text-[10px] font-bold text-muted">ESC</div>
-            </div>
-            <div className="p-4 space-y-1">
-              <div className="text-[10px] font-bold text-muted uppercase tracking-widest px-2 mb-2">Quick Actions</div>
-              <button onClick={() => { setIsSearchOpen(false); router.push(`/dashboard/${companyId}/admin`); }} className="w-full flex items-center gap-3 p-3 hover:bg-accent hover:text-white rounded-2xl transition-all group cursor-pointer">
-                <ShieldAlert className="w-4 h-4" />
-                <span className="text-sm font-bold text-foreground group-hover:text-white">Jump to Admin Center</span>
-              </button>
-            </div>
           </div>
         </div>
       )}
@@ -270,7 +258,7 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
             })}
           </div>
 
-          {/* SYSTEM HUB - UPDATED WITH FINANCIAL PULSE */}
+          {/* SYSTEM HUB */}
           <div className="space-y-1">
             <span className="text-[10px] font-bold text-muted uppercase tracking-widest px-3 mb-2 block">System Hub</span>
             <NavItem 

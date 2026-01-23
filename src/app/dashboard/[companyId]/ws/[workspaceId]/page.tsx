@@ -8,7 +8,7 @@ import {
   Ticket, Plus, Hash, UploadCloud, File as FileIcon, Download, 
   Loader2, ArrowRightLeft, X, Send, AlertCircle, ChevronRight, 
   User, RefreshCw, BarChart3, Check, Calendar, Flag, Clock, History, MessageSquare, AlertTriangle,
-  Layout, List, MessageCircle, Paperclip, Smile, Info, ChevronLeft, Trash2, StopCircle, Eye, EyeOff, Archive
+  Layout, List, MessageCircle, Paperclip, Smile, Info, ChevronLeft, Trash2, StopCircle, Eye, EyeOff, Archive, Search
 } from "lucide-react";
 import { useUser } from "@clerk/nextjs";
 
@@ -27,6 +27,9 @@ export default function WorkspacePage() {
   const myPermissions = useQuery(api.workspaces.getMyself, { workspaceId });
   const chatMessages = useQuery(api.chat.getMessages, { companyId, workspaceId });
   
+  // Find current workspace for the header
+  const activeWorkspace = workspaces?.find(w => w._id === workspaceId);
+
   // Ticket Mutations
   const createTicket = useMutation(api.tickets.create);
   const transferTicket = useMutation(api.tickets.transfer);
@@ -89,11 +92,9 @@ export default function WorkspacePage() {
 
   const hasAdminRights = myPermissions?.isOverallAdmin || myPermissions?.workspaceRole === "admin";
 
-  // Helper to check for archived status (including legacy 'resolved')
   const isArchived = (status: string) => status === 'closed' || status === 'resolved';
 
   // --- HANDLERS ---
-
   const handleTicketCreate = async () => {
     if (!newTicket.title.trim()) return;
     await createTicket({ companyId, workspaceId, ...newTicket });
@@ -166,7 +167,6 @@ export default function WorkspacePage() {
     const statuses = ['open', 'in_progress', 'done'];
     const idx = statuses.indexOf(currentStatus);
     if (idx === -1) return;
-    
     const newIdx = direction === 'next' ? idx + 1 : idx - 1;
     if (newIdx >= 0 && newIdx < statuses.length) {
         updateTicketStatus({ ticketId, status: statuses[newIdx] as any });
@@ -334,18 +334,25 @@ export default function WorkspacePage() {
           <div className="flex items-center gap-2 text-accent font-bold text-[10px] uppercase tracking-wider mb-2">
              <div className="w-2 h-2 rounded-full bg-accent animate-pulse" /> Active Node
           </div>
-          <h1 className="text-4xl font-semibold tracking-tight text-foreground">Workspace Hub</h1>
+          {/* DYNAMIC WORKSPACE NAME */}
+          <h1 className="text-4xl font-semibold tracking-tight text-foreground">
+            {activeWorkspace ? activeWorkspace.name : "Workspace Hub"}
+          </h1>
           <p className="text-muted text-lg font-normal">Manage departmental flows and assets.</p>
         </div>
         
         <div className="flex flex-col md:flex-row items-center gap-4 w-full md:w-auto">
+            {/* Mobile Search Button */}
+            <button onClick={() => document.dispatchEvent(new KeyboardEvent('keydown', {'key': 'k', 'metaKey': true}))} className="md:hidden w-full py-2 bg-foreground/5 rounded-xl text-muted text-xs font-bold flex items-center justify-center gap-2">
+                <Search className="w-4 h-4" /> Search
+            </button>
+
             <div className="flex bg-foreground/5 p-1 rounded-xl w-full md:w-auto overflow-x-auto custom-scrollbar">
                 <button onClick={() => setActiveTab('overview')} className={`px-4 py-2 rounded-lg text-xs font-bold uppercase tracking-wider transition-all whitespace-nowrap ${activeTab === 'overview' ? 'bg-background shadow-sm text-foreground' : 'text-muted hover:text-foreground'}`}>Overview</button>
                 <button onClick={() => setActiveTab('board')} className={`px-4 py-2 rounded-lg text-xs font-bold uppercase tracking-wider transition-all whitespace-nowrap ${activeTab === 'board' ? 'bg-background shadow-sm text-foreground' : 'text-muted hover:text-foreground'}`}>Tickets</button>
                 <button onClick={() => setActiveTab('kanban')} className={`px-4 py-2 rounded-lg text-xs font-bold uppercase tracking-wider transition-all whitespace-nowrap ${activeTab === 'kanban' ? 'bg-background shadow-sm text-foreground' : 'text-muted hover:text-foreground'}`}>Task Board</button>
                 <button onClick={() => setActiveTab('chat')} className={`px-4 py-2 rounded-lg text-xs font-bold uppercase tracking-wider transition-all whitespace-nowrap ${activeTab === 'chat' ? 'bg-background shadow-sm text-foreground' : 'text-muted hover:text-foreground'}`}>Chat</button>
                 <button onClick={() => setActiveTab('assets')} className={`px-4 py-2 rounded-lg text-xs font-bold uppercase tracking-wider transition-all whitespace-nowrap ${activeTab === 'assets' ? 'bg-background shadow-sm text-foreground' : 'text-muted hover:text-foreground'}`}>Assets</button>
-                {/* NEW: Archive Tab Button */}
                 <button onClick={() => setActiveTab('archive')} className={`px-4 py-2 rounded-lg text-xs font-bold uppercase tracking-wider transition-all whitespace-nowrap ${activeTab === 'archive' ? 'bg-background shadow-sm text-foreground' : 'text-muted hover:text-foreground'}`}>Archive</button>
             </div>
             <button 
@@ -379,6 +386,7 @@ export default function WorkspacePage() {
             {/* LIST - Filtered closed tickets - UPDATED WITH OVERDUE VISUALS */}
             <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
                 {tickets.filter(t => !isArchived(t.status)).map((ticket) => {
+                    // OVERDUE CHECK
                     const isOverdue = ticket.dueDate && ticket.dueDate < Date.now() && ticket.status !== 'done';
                     return (
                         <div 

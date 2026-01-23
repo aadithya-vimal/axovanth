@@ -49,7 +49,9 @@ export default defineSchema({
     workspaceHeadId: v.id("users"),
     isDefault: v.boolean(),
     budget: v.optional(v.number()), 
-  }).index("by_company", ["companyId"]),
+  })
+  .index("by_company", ["companyId"])
+  .searchIndex("search_name", { searchField: "name", filterFields: ["companyId"] }), // ADDED SEARCH INDEX
 
   workspaceMembers: defineTable({
     workspaceId: v.id("workspaces"),
@@ -74,12 +76,14 @@ export default defineSchema({
     assigneeId: v.optional(v.id("users")),
     title: v.string(),
     description: v.string(),
-    // FIXED: Added 'resolved' back to support legacy tickets in Archive
     status: v.union(v.literal("open"), v.literal("in_progress"), v.literal("done"), v.literal("closed"), v.literal("resolved"), v.literal("transferred")),
     priority: v.union(v.literal("low"), v.literal("medium"), v.literal("high")),
     type: v.optional(v.union(v.literal("bug"), v.literal("feature"), v.literal("task"))),
     dueDate: v.optional(v.number()),
-  }).index("by_company", ["companyId"]).index("by_workspace", ["workspaceId"]),
+  })
+  .index("by_company", ["companyId"])
+  .index("by_workspace", ["workspaceId"])
+  .searchIndex("search_title", { searchField: "title", filterFields: ["companyId"] }), // ADDED SEARCH INDEX
 
   ticketEvents: defineTable({
     ticketId: v.id("tickets"),
@@ -131,7 +135,8 @@ export default defineSchema({
     isRestricted: v.optional(v.boolean()), 
   })
   .index("by_workspace", ["workspaceId"])
-  .index("by_company", ["companyId"]),
+  .index("by_company", ["companyId"])
+  .searchIndex("search_fileName", { searchField: "fileName", filterFields: ["companyId"] }), // ADDED SEARCH INDEX
 
   assetEvents: defineTable({
     companyId: v.id("companies"),

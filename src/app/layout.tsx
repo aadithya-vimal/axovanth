@@ -1,19 +1,40 @@
-import type { Metadata } from "next";
+import type { Metadata, Viewport } from "next";
 import { Inter } from "next/font/google";
 import "./globals.css";
-import { ConvexClientProvider } from "@/components/providers/convex-provider";
+import ConvexClientProvider from "./ConvexClientProvider"; 
+import { ClerkProvider } from "@clerk/nextjs";
 
-// THE GOD-TIER FIX: Enforce Edge Runtime for the entire OS
-export const runtime = "edge";
+const inter = Inter({ subsets: ["latin"] });
 
-const inter = Inter({ 
-  subsets: ["latin"],
-  variable: "--font-inter", 
-});
-
+// 1. Metadata (SEO, OpenGraph, etc.)
 export const metadata: Metadata = {
-  title: "Axovanth | Enterprise Workspace Platform",
-  description: "Centralized company operations and role-based access control.",
+  title: "Axovanth | Enterprise Operating System",
+  description: "Advanced workspace management, ticketing, and asset control for modern enterprises.",
+  keywords: ["enterprise", "workspace", "tickets", "kanban", "assets", "management", "saas"],
+  openGraph: {
+    title: "Axovanth OS",
+    description: "The operating system for your organization.",
+    url: "https://axovanth.com",
+    siteName: "Axovanth",
+    locale: "en_US",
+    type: "website",
+  },
+  twitter: {
+    card: "summary_large_image",
+    title: "Axovanth OS",
+    description: "Streamline your enterprise operations.",
+  },
+};
+
+// 2. Viewport (Separated from metadata as per Next.js 14+ requirements)
+export const viewport: Viewport = {
+  width: "device-width",
+  initialScale: 1,
+  maximumScale: 1,
+  themeColor: [
+    { media: "(prefers-color-scheme: light)", color: "white" },
+    { media: "(prefers-color-scheme: dark)", color: "black" },
+  ],
 };
 
 export default function RootLayout({
@@ -22,12 +43,14 @@ export default function RootLayout({
   children: React.ReactNode;
 }>) {
   return (
-    <html lang="en" suppressHydrationWarning>
-      <body className={`${inter.variable} antialiased`}>
-        <ConvexClientProvider>
-          {children}
-        </ConvexClientProvider>
-      </body>
-    </html>
+    <ClerkProvider>
+      <html lang="en" className="dark">
+        <body className={`${inter.className} bg-background text-foreground antialiased overflow-x-hidden min-h-screen relative`}>
+          <ConvexClientProvider>
+            {children}
+          </ConvexClientProvider>
+        </body>
+      </html>
+    </ClerkProvider>
   );
 }
